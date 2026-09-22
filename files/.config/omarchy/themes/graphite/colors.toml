@@ -1,0 +1,38 @@
+# Graphite: dark neutral grays with a blue accent.
+mode = "dark"
+
+# Accent.
+accent = "#0a84ff"
+selection = "#264a73"
+muted = "#3a3a3c"
+
+background = "#1a1a1c"
+dark_background = "#141416"
+darker_background = "#0e0e10"
+lighter_background = "#242426"
+
+foreground = "#e5e5e7"
+dark_foreground = "#636366"
+light_foreground = "#98989d"
+bright_foreground = "#f5f5f7"
+
+# Terminal colors.
+red = "#ff453a"
+yellow = "#ffd60a"
+orange = "#ff9f0a"
+green = "#32d74b"
+cyan = "#64d2ff"
+blue = "#0a84ff"
+magenta = "#bf5af2"
+brown = "#ac8e68"
+
+bright_red = "#ff6961"
+bright_yellow = "#ffe066"
+bright_green = "#5de37a"
+bright_cyan = "#8ee0ff"
+bright_blue = "#409cff"
+bright_magenta = "#da8fff"
+
+# Thin, quiet window borders. The focused window gets a soft blue edge.
+hyprland_active_border = "rgba(0a84ffb3)"
+hyprland_inactive_border = "rgba(ffffff14)"

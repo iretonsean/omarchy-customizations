@@ -1,0 +1,266 @@
+#!/usr/bin/env python3
+"""Build the project parts of the workspace from ~/.config/omarchy/projects.json.
+
+For each project it writes:
+  - rows in the Projects menu (Super+D) and in Learn -> My Workspace -> Workspaces
+  - a web app launcher and icon for each site, plus a hidden launcher named after
+    the site's window class, so the dock can match a running site to its pin
+  - Hyprland rules that open each site on the project's workspace
+  - dock pins for the sites
+  - the project list in the workspace guide
+
+Run it again after you change projects.json. Usage: projects-apply [path/to/projects.json]
+"""
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import urllib.request
+from urllib.parse import urlparse
+
+HOME = os.path.expanduser("~")
+CONFIG = os.path.join(HOME, ".config/omarchy/projects.json")
+MENU = os.path.join(HOME, ".config/omarchy/extensions/omarchy-menu.jsonc")
+GUIDE = os.path.join(HOME, ".local/share/workspace-guide/index.html")
+HYPR_RULES = os.path.join(HOME, ".config/hypr/projects.lua")
+DOCK_BASE = os.path.join(HOME, ".config/nwg-dock-hyprland/pinned")
+DOCK_PINS = os.path.join(HOME, ".cache/nwg-dock-pinned")
+APPS = os.path.join(HOME, ".local/share/applications")
+ICONS = os.path.join(HOME, ".local/share/icons/hicolor/256x256/apps")
+STATE = os.path.join(HOME, ".local/state/projects-apply/generated.json")
+PROJECT_OPEN = os.path.join(HOME, ".local/bin/project-open")
+
+GLYPH_PROJECT = chr(0xF0169)
+GLYPH_SITE = chr(0xF059F)
+GLYPH_AGENT = chr(0xF06A9)
+GLYPH_FOLDER = chr(0xF07B)
+GLYPH_TERMINAL = chr(0xF489)
+GLYPH_WORKSPACE = chr(0xF0570)
+
+
+def expand(path):
+    return os.path.expanduser(os.path.expandvars(path))
+
+
+def slug(text):
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+def glyph(value, fallback):
+    if not value:
+        return fallback
+    if re.fullmatch(r"[0-9a-fA-F]{4,5}", value):
+        return chr(int(value, 16))
+    return value
+
+
+def window_class(url):
+    """The class Chromium gives an --app window: chrome-<host>__<path>-Default."""
+    parts = urlparse(url)
+    path = parts.path.strip("/").replace("/", "_")
+    return f"chrome-{parts.netloc}__{path}-Default"
+
+
+def host_pattern(url):
+    return "chrome-" + re.escape(urlparse(url).netloc) + "__"
+
+
+def row(icon, label, action=None, description=None):
+    item = {"icon": icon, "label": label}
+    if description:
+        item["description"] = description
+    if action:
+        item["action"] = action
+    return item
+
+
+def replace_region(text, name, body, comment):
+    start, end = comment(f"BEGIN projects-apply: {name}"), comment(f"END projects-apply: {name}")
+    pattern = re.compile(rf"^([ \t]*){re.escape(start)}\n.*?^[ \t]*{re.escape(end)}", re.M | re.S)
+    match = pattern.search(text)
+    if not match:
+        sys.exit(f"projects-apply: region '{name}' not found. Reinstall the file from the repo.")
+    indent = match.group(1)
+    block = f"{indent}{start}\n{body}{indent}{end}"
+    return text[: match.start()] + block + text[match.end():]
+
+
+def install_icon(source, name):
+    os.makedirs(ICONS, exist_ok=True)
+    target = os.path.join(ICONS, f"{name}.png")
+    source = expand(source)
+    if source.startswith(("http://", "https://")):
+        download = target + ".download"
+        urllib.request.urlretrieve(source, download)
+        source = download
+    if not os.path.exists(source):
+        print(f"projects-apply: icon not found, skipped: {source}", file=sys.stderr)
+        return None
+    if source.lower().endswith(".png"):
+        shutil.copyfile(source, target)
+    else:
+        subprocess.run(["magick", source + "[0]", "-resize", "256x256", target], check=True)
+    if source.endswith(".download"):
+        os.remove(source)
+    return name
+
+
+def desktop_entry(name, url, icon, wm_class, hidden):
+    lines = [
+        "[Desktop Entry]",
+        "Version=1.0",
+        f"Name={name}",
+        f"Comment={name}",
+        f'Exec=omarchy-launch-webapp "{url}"',
+        "Terminal=false",
+        "Type=Application",
+        f"StartupWMClass={wm_class}",
+        "StartupNotify=true",
+    ]
+    if icon:
+        lines.append(f"Icon={icon}")
+    if hidden:
+        lines.append("NoDisplay=true")
+    return "\n".join(lines) + "\n"
+
+
+def main():
+    config_path = sys.argv[1] if len(sys.argv) > 1 else CONFIG
+    if os.path.exists(config_path):
+        with open(config_path) as file:
+            projects = json.load(file).get("projects", [])
+    else:
+        print(f"projects-apply: no {config_path} yet, so there are no projects. See projects.example.json.")
+        projects = []
+
+    menu_rows, space_rows, rules, pins, guide_items = {}, {}, [], [], []
+    generated = []
+
+    for project in projects:
+        pid = slug(project["id"])
+        name = project["name"]
+        workspace = str(project["workspace"])
+        folder = expand(project["folder"])
+        base = f"projects.{pid}"
+
+        menu_rows[base] = row(glyph(project.get("glyph"), GLYPH_PROJECT), name, description=f"Workspace {workspace}")
+
+        site_names = []
+        for index, site in enumerate(project.get("sites", [])):
+            url = site["url"]
+            site_name = site.get("name") or f"{name} {site.get('label', 'site')}"
+            wm_class = window_class(url)
+            icon = install_icon(site["icon"], f"projects-{slug(site_name)}") if site.get("icon") else None
+
+            for filename, hidden in ((f"projects-{slug(site_name)}.desktop", False), (f"{wm_class}.desktop", True)):
+                path = os.path.join(APPS, filename)
+                with open(path, "w") as file:
+                    file.write(desktop_entry(site_name, url, icon, wm_class, hidden))
+                generated.append(path)
+            if icon:
+                generated.append(os.path.join(ICONS, f"{icon}.png"))
+
+            action = f"omarchy-launch-or-focus-webapp {json.dumps(host_pattern(url))} {json.dumps(url)}"
+            menu_rows[f"{base}.site{index + 1}"] = row(GLYPH_SITE, site.get("label", site_name), action, urlparse(url).netloc)
+            rules.append((host_pattern(url), workspace))
+            if site.get("dock", True):
+                pins.append(wm_class)
+            site_names.append(f"{site.get('label', site_name)} ({urlparse(url).netloc})")
+
+        sessions = project.get("sessions") or [{"label": "Agent session", "folder": project["folder"]}]
+        for index, session in enumerate(sessions):
+            session_folder = expand(session["folder"])
+            action = f"{json.dumps(PROJECT_OPEN)} {workspace} {json.dumps(session_folder)} agent"
+            menu_rows[f"{base}.session{index + 1}"] = row(
+                GLYPH_AGENT, session["label"], action, "New coding agent session in this folder"
+            )
+
+        menu_rows[f"{base}.files"] = row(
+            GLYPH_FOLDER, "Folder", f"{json.dumps(PROJECT_OPEN)} {workspace} {json.dumps(folder)} files", "Open in the file manager"
+        )
+        menu_rows[f"{base}.terminal"] = row(
+            GLYPH_TERMINAL, "Terminal", f"{json.dumps(PROJECT_OPEN)} {workspace} {json.dumps(folder)} terminal", "Open a terminal in this folder"
+        )
+
+        short = project.get("short") or name
+        space_rows[f"learn.workspace.spaces.ws{workspace}"] = row(
+            GLYPH_WORKSPACE,
+            f"⌘{workspace}  {short}",
+            f"hyprctl dispatch 'hl.dsp.focus({{ workspace = \"{workspace}\" }})'",
+            f"Project: {name}",
+        )
+
+        guide_items.append(
+            f"    <li><b>{name}</b> (workspace {workspace}): <code>{project['folder']}</code>"
+            + (f". Sites: {', '.join(site_names)}" if site_names else "")
+            + ".</li>\n"
+        )
+
+    # Remove launchers and icons from projects that are gone.
+    previous = []
+    if os.path.exists(STATE):
+        with open(STATE) as file:
+            previous = json.load(file)
+    for path in set(previous) - set(generated):
+        if os.path.exists(path):
+            os.remove(path)
+    os.makedirs(os.path.dirname(STATE), exist_ok=True)
+    with open(STATE, "w") as file:
+        json.dump(sorted(generated), file, indent=2)
+
+    # Menu
+    def json_lines(rows):
+        return "".join(f"  {json.dumps(key)}: {json.dumps(value, ensure_ascii=False)},\n" for key, value in rows.items())
+
+    with open(MENU) as file:
+        menu = file.read()
+    menu = replace_region(menu, "projects", json_lines(menu_rows), lambda text: f"// {text}")
+    menu = replace_region(menu, "learn-spaces", json_lines(space_rows), lambda text: f"// {text}")
+    with open(MENU, "w") as file:
+        file.write(menu)
+
+    # Hyprland rules
+    lua = ["-- Generated by projects-apply from ~/.config/omarchy/projects.json. Do not edit.\n"]
+    for pattern, workspace in rules:
+        lua_pattern = f"^{pattern}.*-Default$".replace("\\", "\\\\")
+        lua.append(f'o.window("{lua_pattern}", {{ workspace = "{workspace}" }})\n')
+    with open(HYPR_RULES, "w") as file:
+        file.writelines(lua)
+
+    # Dock pins: the base list with the project sites after the Projects launcher.
+    base_pins = []
+    if os.path.exists(DOCK_BASE):
+        with open(DOCK_BASE) as file:
+            base_pins = [line.strip() for line in file if line.strip()]
+    at = base_pins.index("projects-menu") + 1 if "projects-menu" in base_pins else len(base_pins)
+    os.makedirs(os.path.dirname(DOCK_PINS), exist_ok=True)
+    with open(DOCK_PINS, "w") as file:
+        file.write("\n".join(base_pins[:at] + pins + base_pins[at:]) + "\n")
+
+    # Guide
+    if os.path.exists(GUIDE):
+        with open(GUIDE) as file:
+            guide = file.read()
+        body = "  <ul>\n" + "".join(guide_items) + "  </ul>\n" if guide_items else "  <p>No projects yet.</p>\n"
+        guide = replace_region(guide, "projects", body, lambda text: f"<!-- {text} -->")
+        with open(GUIDE, "w") as file:
+            file.write(guide)
+
+    # Apply
+    subprocess.run(["gtk-update-icon-cache", os.path.join(HOME, ".local/share/icons/hicolor")], capture_output=True)
+    if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        subprocess.run(["hyprctl", "reload"], capture_output=True)
+        dock = subprocess.run(["pgrep", "-f", "(^|/)nwg-dock-hyprland( |$)"], capture_output=True, text=True).stdout.split()
+        if dock:
+            subprocess.run(["kill", *dock])
+            dock_start = os.path.join(HOME, ".local/bin/dock-start")
+            subprocess.run(["hyprctl", "dispatch", f'hl.dsp.exec_cmd("uwsm-app -- {dock_start}")'], capture_output=True)
+
+    print(f"projects-apply: {len(projects)} project(s), {len(rules)} site(s).")
+
+
+if __name__ == "__main__":
+    main()

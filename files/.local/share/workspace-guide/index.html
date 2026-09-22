@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Workspace</title>
+<style>
+  :root {
+    --bg: #121212; --surface: #1b1b1b; --line: #2a2a2a;
+    --text: #e6e6e6; --muted: #9a9a9a; --accent: #e2a038;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 "SF Pro Text", "SF Pro", -apple-system, "Inter", system-ui, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 17px; margin: 36px 0 12px; }
+  p { margin: 0 0 12px; }
+  .lead { color: var(--muted); margin-bottom: 28px; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 10px; overflow: hidden; }
+  td, th { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  kbd {
+    font: 13px "SF Mono", "SF Pro Mono", ui-monospace, monospace;
+    background: #262626; border: 1px solid #333; border-radius: 6px; padding: 2px 7px; white-space: nowrap;
+  }
+  code { font: 13px "SF Mono", "SF Pro Mono", ui-monospace, monospace; color: var(--accent); }
+  ol, ul { padding-left: 20px; margin: 0 0 12px; }
+  li { margin-bottom: 6px; }
+  .note { background: var(--surface); border-left: 3px solid var(--accent); border-radius: 8px; padding: 12px 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>My Workspace</h1>
+  <p class="lead">On a Mac keyboard, <kbd>Super</kbd> is the <kbd>⌘</kbd> key. Each kind of work has its own workspace. Use the Projects menu to open your work. You do not have to type commands.</p>
+
+  <h2>Start work on a project</h2>
+  <ol>
+    <li>Press <kbd>Super</kbd> <kbd>D</kbd> to open the Projects menu.</li>
+    <li>Select a project.</li>
+    <li>Select <b>Agent session</b> to start a session with your coding agent in that project. The session opens on the project's workspace.</li>
+  </ol>
+  <p>Each project can also have <b>site</b> rows. They open a website of the project as an app on the project's workspace. Each project has <b>Folder</b> (opens the file manager) and <b>Terminal</b> too.</p>
+  <p>The coding agent is the one you set with <code>omarchy default agent</code>.</p>
+
+  <h2>Your projects</h2>
+<!-- BEGIN projects-apply: projects -->
+<!-- END projects-apply: projects -->
+  <p>To add or change a project, edit <code>~/.config/omarchy/projects.json</code>, then run <code>projects-apply</code> in a terminal.</p>
+
+  <h2>Workspaces</h2>
+  <table>
+    <tr><th>Key</th><th>Workspace</th><th>Contents</th></tr>
+    <tr><td><kbd>Super</kbd> <kbd>1</kbd></td><td>Agents</td><td>T3 Code, Claude</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>2</kbd></td><td>Project</td><td>Agent sessions, sites, folder and terminal of a project</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>3</kbd></td><td>Project</td><td>The same, for another project</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>4</kbd></td><td>Design</td><td>Figma, Paper, Claude Design (always fully opaque)</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>5</kbd></td><td>Web</td><td>Normal browsing</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>6</kbd></td><td>Messages</td><td>HEY, WhatsApp, Discord, Signal, Google Messages</td></tr>
+  </table>
+  <p style="margin-top:12px">To move a window to another workspace, press <kbd>Super</kbd> <kbd>Shift</kbd> and the number.</p>
+
+  <h2>Keys for apps</h2>
+  <table>
+    <tr><th>Key</th><th>Opens</th></tr>
+    <tr><td><kbd>Super</kbd> <kbd>D</kbd></td><td>Projects menu</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>Shift</kbd> <kbd>A</kbd></td><td>Claude (claude.ai)</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>Shift</kbd> <kbd>T</kbd></td><td>T3 Code (coding agents in a window)</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>Shift</kbd> <kbd>I</kbd></td><td>Figma</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>Shift</kbd> <kbd>Alt</kbd> <kbd>I</kbd></td><td>Paper</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>Shift</kbd> <kbd>Ctrl</kbd> <kbd>I</kbd></td><td>Claude Design</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>V</kbd></td><td>Paste. In a terminal it also pastes images into agents that read them on Ctrl+V, such as Claude Code.</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>4</kbd></td><td>Screenshot of an area to the clipboard</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>Print</kbd></td><td>Color picker</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>Ctrl</kbd> <kbd>N</kbd></td><td>Night light on or off. Turn it off for color work.</td></tr>
+    <tr><td><kbd>Super</kbd> <kbd>K</kbd></td><td>All key bindings</td></tr>
+  </table>
+  <p style="margin-top:12px">If an app is already open, its key moves you to it. It does not open a second copy.</p>
+
+  <h2>Dock</h2>
+  <p>The dock is at the bottom of the screen. It hides until you move the pointer to the bottom edge.</p>
+  <ul>
+    <li><b>Items:</b> T3 Code, Claude, Terminal, Files, Chromium, Figma, Paper, Claude Design, Projects, your project sites, HEY, WhatsApp, Obsidian.</li>
+    <li>A dot under an icon shows that the app is running. Click it to go to its window.</li>
+    <li>The grid button on the right opens all apps.</li>
+    <li><b>Change the items:</b> edit <code>~/.config/nwg-dock-hyprland/pinned</code> (one app per line), then run <code>projects-apply</code>. Project sites are added after Projects.</li>
+  </ul>
+
+  <h2>T3 Code</h2>
+  <p>T3 Code shows your coding agent sessions in a window. It uses the agents you already have installed and signed in to.</p>
+  <ol>
+    <li>The first time you open it, click through the <b>Connect</b> screen.</li>
+    <li>Add your project folders as projects.</li>
+    <li>You can run several sessions at the same time, one for each task.</li>
+  </ol>
+
+  <h2>Theme: Graphite</h2>
+  <p>Graphite is your own theme. It uses dark neutral grays, a blue accent, 12px rounded corners, soft shadows and no blur.</p>
+  <ul>
+    <li><b>Fonts:</b> SF Pro in menus and apps such as Files. SF Mono in the terminal and the bar.</li>
+    <li><b>Cursor:</b> the pre-Tahoe macOS cursor theme, from the <code>apple_cursor</code> package. A white version, "macOS-White", is also installed.</li>
+    <li><b>Change the background:</b> press <kbd>Super</kbd> <kbd>Ctrl</kbd> <kbd>Space</kbd>. There are two backgrounds, "glow" and "plain".</li>
+    <li><b>Change the theme:</b> press <kbd>Super</kbd> <kbd>Shift</kbd> <kbd>Ctrl</kbd> <kbd>Space</kbd>. To go back to the old look, select Matte Black.</li>
+    <li><b>Theme files:</b> <code>~/.config/omarchy/themes/graphite/</code></li>
+  </ul>
+
+  <h2>Where the files are</h2>
+  <ul>
+    <li>Projects: <code>~/.config/omarchy/projects.json</code></li>
+    <li>Workspace rules: <code>~/.config/hypr/workspaces.lua</code></li>
+    <li>Keys: end of <code>~/.config/hypr/bindings.lua</code></li>
+    <li>Menus: <code>~/.config/omarchy/extensions/omarchy-menu.jsonc</code></li>
+    <li>This guide: <code>~/.local/share/workspace-guide/index.html</code></li>
+  </ul>
+
+  <h2>To undo</h2>
+  <p class="note">Remove <code>require("hypr.workspaces")</code> from <code>~/.config/hypr/hyprland.lua</code>, and remove the "Projects menu" lines at the end of <code>bindings.lua</code> and of the menu file.</p>
+</main>
+</body>
+</html>

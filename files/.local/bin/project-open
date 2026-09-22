@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# Go to a project's workspace and open a tool in the project folder.
+# Used by the "Projects" entries in the Omarchy menu (Super+D).
+#
+# Usage: project-open <workspace> <dir> <agent|files|terminal>
+#
+# "agent" starts the coding agent chosen with `omarchy default agent`.
+
+set -e
+
+workspace=${1:?workspace required}
+dir=${2:?project folder required}
+action=${3:-agent}
+
+if [[ ! -d $dir ]]; then
+  notify-send "Project not found" "$dir"
+  exit 1
+fi
+
+hyprctl dispatch "hl.dsp.focus({ workspace = \"$workspace\" })" >/dev/null
+cd "$dir"
+
+case "$action" in
+agent | claude) exec omarchy-agent ;;
+files) exec setsid uwsm-app -- nautilus "$dir" ;;
+terminal) exec setsid uwsm-app -- xdg-terminal-exec --dir="$dir" ;;
+*)
+  echo "Unknown action: $action" >&2
+  exit 1
+  ;;
+esac

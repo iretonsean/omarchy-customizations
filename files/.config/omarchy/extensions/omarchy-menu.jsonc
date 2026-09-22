@@ -1,0 +1,67 @@
+{
+  // Extend the Quickshell Omarchy menu with JSONC.
+  //
+  // IDs are object keys. The parent is inferred from the dotted id, so
+  // "personal.notes" appears under "personal", and "personal" appears on the
+  // root menu. Reuse an existing id to override/extend it.
+  //
+  // Fields:
+  //   icon        Nerd Font glyph shown in the icon column.
+  //   label       Visible row title.
+  //   action      Shell command to run. If omitted, the row is a submenu.
+  //   target      Existing submenu id to open. Use for links/aliases.
+  //   provider    Runtime provider function/command returning JSON rows.
+  //   aliases     alternate `omarchy menu summon <name>` routes; also searchable.
+  //   description Optional subtitle and extra search text.
+  //   when        Shell condition; hide row when it fails.
+  //   checked     Shell condition; append ✓ when it succeeds.
+  //
+  // Examples:
+  // "personal": {"icon":"","label":"Personal"},
+  // "personal.notes": {"icon":"󰎞","label":"Notes","action":"omarchy-launch-editor ~/notes"},
+  // "personal.files": {"icon":"","label":"Files","action":"uwsm-app -- nautilus ~/Documents"},
+  //
+  // Only use provider when a provider_name function or command named "name"
+  // returns JSON rows. Static submenus only need dotted ids.
+  //
+  // Example: replace the default About action by reusing the same id. Existing
+  // fields are kept unless overridden.
+  // "about": {"icon":"","label":"About","action":"omarchy-launch-or-focus-tui \"zsh -c 'fastfetch; read -k 1'\""},
+
+  // Projects menu (Super+D). The rows between the projects-apply markers are built
+  // from ~/.config/omarchy/projects.json by ~/.local/bin/projects-apply.
+  "projects": {"icon": "󰅩", "label": "Projects", "description": "Open agent sessions, sites, folders and design tools"},
+  "projects.t3": {"icon": "󰚩", "label": "T3 Code", "description": "Coding agents in a window (workspace 1)", "action": "omarchy-launch-or-focus 'com.t3tools.T3Code' 'uwsm-app -- gtk-launch com.t3tools.T3Code'"},
+  "projects.claude": {"icon": "󰚩", "label": "Claude", "description": "claude.ai (workspace 1)", "action": "omarchy-launch-or-focus-webapp 'chrome-claude\\.ai__new' https://claude.ai/new"},
+  // BEGIN projects-apply: projects
+  // END projects-apply: projects
+  "projects.design": {"icon": "󰏘", "label": "Design", "description": "Workspace 4"},
+  "projects.design.figma": {"icon": "", "label": "Figma", "action": "omarchy-launch-or-focus-webapp 'chrome-www\\.figma\\.com__' https://www.figma.com/files"},
+  "projects.design.paper": {"icon": "", "label": "Paper", "action": "omarchy-launch-or-focus-webapp 'chrome-app\\.paper\\.design__' https://app.paper.design"},
+  "projects.design.claude": {"icon": "", "label": "Claude Design", "action": "omarchy-launch-or-focus-webapp 'chrome-claude\\.ai__design' https://claude.ai/design"},
+
+  // Learn → My Workspace: instructions for the workspace setup.
+  "learn.workspace": {"icon": "", "label": "My Workspace", "description": "How your workspaces, keys and Projects menu work"},
+  "learn.workspace.guide": {"icon": "", "label": "Full guide", "description": "Open all instructions on one page", "action": "omarchy-launch-webapp \"file://$HOME/.local/share/workspace-guide/index.html\""},
+  "learn.workspace.start": {"icon": "󰅩", "label": "Start work  ⌘D", "description": "Projects menu → pick a project → start an agent session", "action": "omarchy-menu toggle projects"},
+  "learn.workspace.spaces": {"icon": "󰕰", "label": "Workspaces", "description": "Super + 1 to 6. Select a row to go there."},
+  "learn.workspace.spaces.ws1": {"icon": "󰕰", "label": "⌘1  Agents", "description": "T3 Code, Claude", "action": "hyprctl dispatch 'hl.dsp.focus({ workspace = \"1\" })'"},
+  // BEGIN projects-apply: learn-spaces
+  // END projects-apply: learn-spaces
+  "learn.workspace.spaces.ws4": {"icon": "󰕰", "label": "⌘4  Design", "description": "Figma, Paper, Claude Design", "action": "hyprctl dispatch 'hl.dsp.focus({ workspace = \"4\" })'"},
+  "learn.workspace.spaces.ws5": {"icon": "󰕰", "label": "⌘5  Web", "description": "Normal browsing", "action": "hyprctl dispatch 'hl.dsp.focus({ workspace = \"5\" })'"},
+  "learn.workspace.spaces.ws6": {"icon": "󰕰", "label": "⌘6  Messages", "description": "HEY, WhatsApp, Discord, Signal", "action": "hyprctl dispatch 'hl.dsp.focus({ workspace = \"6\" })'"},
+  "learn.workspace.keys": {"icon": "󰌌", "label": "Keys", "description": "Keys for your apps. Select a row to open the app."},
+  "learn.workspace.keys.projects": {"icon": "󰌌", "label": "Projects  ⌘D", "action": "omarchy-menu toggle projects"},
+  "learn.workspace.keys.claude": {"icon": "󰌌", "label": "Claude  ⌘⇧A", "action": "omarchy-launch-or-focus-webapp 'chrome-claude\\.ai__new' https://claude.ai/new"},
+  "learn.workspace.keys.t3": {"icon": "󰌌", "label": "T3 Code  ⌘⇧T", "action": "omarchy-launch-or-focus 'com.t3tools.T3Code' 'uwsm-app -- gtk-launch com.t3tools.T3Code'"},
+  "learn.workspace.keys.figma": {"icon": "󰌌", "label": "Figma  ⌘⇧I", "action": "omarchy-launch-or-focus-webapp 'chrome-www\\.figma\\.com__' https://www.figma.com/files"},
+  "learn.workspace.keys.paper": {"icon": "󰌌", "label": "Paper  ⌘⇧⌥I", "action": "omarchy-launch-or-focus-webapp 'chrome-app\\.paper\\.design__' https://app.paper.design"},
+  "learn.workspace.keys.design": {"icon": "󰌌", "label": "Claude Des. ⌘⇧⌃I", "action": "omarchy-launch-or-focus-webapp 'chrome-claude\\.ai__design' https://claude.ai/design"},
+  "learn.workspace.keys.shot": {"icon": "󰌌", "label": "Screenshot ⌘⌃⇧4", "description": "Select an area. The image goes to the clipboard.", "action": "omarchy-capture-screenshot region copy"},
+  "learn.workspace.keys.picker": {"icon": "󰌌", "label": "Colors  ⌘Print", "action": "omarchy-menu close; sleep 0.3; hyprpicker -a"},
+  "learn.workspace.keys.night": {"icon": "󰌌", "label": "Night light ⌘⌃N", "action": "omarchy toggle nightlight"},
+  "learn.workspace.keys.all": {"icon": "󰌌", "label": "All keys  ⌘K", "action": "omarchy-menu-keybindings"},
+  "learn.workspace.t3": {"icon": "󰚩", "label": "T3 Code first run", "description": "Click through Connect, then add your project folders", "action": "omarchy-launch-or-focus 'com.t3tools.T3Code' 'uwsm-app -- gtk-launch com.t3tools.T3Code'"},
+  "learn.workspace.theme": {"icon": "󰏘", "label": "Theme: Graphite", "description": "Open the theme menu. Select Matte Black to go back.", "action": "theme=$(omarchy-theme-switcher); [[ -n $theme ]] && omarchy-theme-set \"$theme\""}
+}

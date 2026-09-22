@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Paper
+Comment=Paper
+Exec=omarchy-launch-webapp "https://app.paper.design"
+Terminal=false
+Type=Application
+Icon=paper
+StartupNotify=true
+StartupWMClass=chrome-app.paper.design__-Default
+NoDisplay=true

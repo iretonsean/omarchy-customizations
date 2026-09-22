@@ -1,0 +1,44 @@
+{
+  "projects": [
+    {
+      "id": "my-app",
+      "name": "My App",
+      "workspace": 2,
+      "folder": "~/Projects/my-app",
+      "sites": [
+        {
+          "label": "Live site",
+          "name": "My App",
+          "url": "https://example.com",
+          "icon": "https://example.com/apple-touch-icon.png"
+        }
+      ]
+    },
+    {
+      "id": "client",
+      "name": "Client Work",
+      "short": "Client",
+      "glyph": "f0f4",
+      "workspace": 3,
+      "folder": "~/Projects/client",
+      "sites": [
+        {
+          "label": "Dashboard",
+          "name": "Client Dashboard",
+          "url": "https://dashboard.example.com/",
+          "icon": "~/Pictures/client-dashboard.png"
+        },
+        {
+          "label": "Marketing site",
+          "url": "https://www.example.com/",
+          "dock": false
+        }
+      ],
+      "sessions": [
+        { "label": "Agent: all repos", "folder": "~/Projects/client" },
+        { "label": "Agent: web", "folder": "~/Projects/client/web" },
+        { "label": "Agent: api", "folder": "~/Projects/client/api" }
+      ]
+    }
+  ]
+}

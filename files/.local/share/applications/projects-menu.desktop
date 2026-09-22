@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Projects
+Comment=Open the Projects menu (Super+D)
+Exec=omarchy-menu toggle projects
+Icon=/usr/share/icons/breeze/places/48/folder-development.svg
+Terminal=false

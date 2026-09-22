@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=Claude Design
+Comment=Claude Design
+Exec=omarchy-launch-webapp "https://claude.ai/design"
+Terminal=false
+Type=Application
+Icon=claude-design
+StartupNotify=true
+StartupWMClass=chrome-claude.ai__design-Default

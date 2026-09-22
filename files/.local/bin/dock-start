@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Start the dock. It hides until the pointer reaches the bottom edge.
+# Pinned items: ~/.cache/nwg-dock-pinned (built by projects-apply from
+# ~/.config/nwg-dock-hyprland/pinned). Style: ~/.config/nwg-dock-hyprland/style.css.
+# The grid button opens the Omarchy apps menu.
+
+exec nwg-dock-hyprland -d -hd 150 -i 40 -mb 6 -iw special -c 'omarchy-menu toggle apps'

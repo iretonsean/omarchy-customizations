@@ -1,0 +1,38 @@
+/* Dock in the Graphite theme: rounded panel, no blur. */
+window {
+  background: rgba(36, 36, 38, 0.96);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+#box {
+  padding: 6px 8px;
+}
+
+button, image {
+  background: none;
+  border-style: none;
+  box-shadow: none;
+  color: #e5e5e7;
+}
+
+button {
+  padding: 4px;
+  margin: 0 2px;
+  border-radius: 12px;
+  font-family: "SF Pro Text";
+  font-size: 12px;
+}
+
+button:hover {
+  background-color: rgba(255, 255, 255, 0.10);
+}
+
+/* The focused app gets a soft blue underline, like the accent. */
+#active {
+  border-bottom: 2px solid rgba(10, 132, 255, 0.85);
+}
+
+button:focus {
+  box-shadow: none;
+}
