@@ -135,3 +135,18 @@ Wi-Fi and Bluetooth are terminal apps (impala and bluetui). They take only the t
 - Which files in a theme folder Omarchy 4 reads for the Quickshell menu, waybar, mako, swayosd and hyprlock.
 - Whether `colors.toml` accepts extra keys and passes them to templates. If not, keep the tokens in one CSS or QML file that the others import.
 - Whether the Quickshell menu can draw one keycap per key and show a group name inside a group.
+
+## Directions to explore
+
+These are open design questions. They come after the build in "Order for the session" and do not block it. Test each one on the machine, keep what works, and put the result in this brief.
+
+1. **Visible keyboard focus.** The lift (`#303033` on `#222224`) is quiet. Check if you can find the focused row at a glance while you type in the menu. If not, add a second signal for keyboard focus only, for example a 1px `accent` inner edge. Keep the lift alone for hover.
+2. **Window focus.** The rules say blue marks what is chosen, and the focused window is a kind of choice. Compare two versions: the current blue border (`rgba(0a84ffb3)`), and no colored border with Hyprland's `dim_inactive` at a low value. Pick the version where you find the focused window faster.
+3. **Motion.** Give every panel the same entry: a fade and a scale from 0.98, 120–160ms, ease-out. The toggle knob slides in 120ms. The lift fades in 80ms. Set the Hyprland layer animations to match and check that the menu does not feel slow.
+4. **The bar.** Waybar does not follow the D rules yet. Try workspace numbers in SF Mono, the current workspace shown with a lift and not a color, and status values as mono text in `text-3` that turns `warn` or `error` only when something needs attention.
+5. **Background.** Dark panels on the graphite glow have low contrast between panel and wall. Try a background with more tone change (a lighter graphite texture or a soft grain), and check that panels still look separate without borders.
+6. **Density.** The menu uses 36px rows and data uses 30px rows. Use the menu for a day at each size and check whether one row height for everything is enough.
+7. **Icons.** Pick one line-icon set with a stroke that matches SF Pro at 15px (about 1.5–1.8px), and map the Omarchy menu's Nerd Font glyphs to it. Mixed icon styles make the menu look unfinished quickly.
+8. **States.** Design what each surface shows when something is empty, running or failed. Examples: no notifications, an update in progress, no Wi-Fi, a failed download. Use the status colors and mono text; do not add new colors.
+9. **Terminal and editor.** Make the terminal padding, cursor and selection color match the tokens, so that the terminal looks like part of the same system as the panels.
+10. **A light variant (optional).** The tokens are named by role, not by color. Make a light set to test the system. If the rules still work in light, the component system is correct. If they do not, find which rule depends on a dark background.
