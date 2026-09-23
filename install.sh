@@ -36,7 +36,7 @@ while IFS= read -r -d '' file; do
   mkdir -p "$(dirname "$target")"
   cp --backup=numbered "$file" "$target"
 done < <(find . -type f -print0)
-chmod +x "$HOME/.local/bin/project-open" "$HOME/.local/bin/projects-apply" "$HOME/.local/bin/dock-start"
+chmod +x "$HOME/.local/bin/project-open" "$HOME/.local/bin/projects-apply" "$HOME/.local/bin/dock-start" "$HOME/.local/bin/terminal-paste"
 
 echo "==> Projects"
 "$HOME/.local/bin/projects-apply"

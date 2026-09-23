@@ -46,8 +46,11 @@ o.bind("SUPER + CTRL + SHIFT + code:13", "Screenshot area to clipboard", "omarch
 
 -- Super+V in a terminal: paste an image into a coding agent.
 -- Omarchy's universal paste sends Shift+Insert to terminals, which pastes text
--- only. When the clipboard holds an image, send Ctrl+V instead, because terminal
--- agents such as Claude Code read clipboard images on Ctrl+V. Text pastes work as before.
+-- only. In a terminal, run ~/.local/bin/terminal-paste in the background: it
+-- sends Ctrl+V when the clipboard holds an image (terminal agents such as
+-- Claude Code read images on Ctrl+V) and Shift+Insert for text. Never check
+-- the clipboard here: Hyprland would wait for wl-paste, which waits for
+-- Hyprland, and the screen freezes.
 local function send_shortcut_once(mods, key)
   hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "down" }))
   hl.timer(function()
@@ -65,17 +68,11 @@ local function active_window_is_terminal()
   return false
 end
 
-local function clipboard_has_image()
-  return o.shell_succeeds("timeout 0.3 wl-paste --list-types | grep -q '^image/'")
-end
-
 hl.unbind("SUPER + V")
 o.bind("SUPER + V", "Universal paste (images too)", function()
-  if not active_window_is_terminal() then
-    send_shortcut_once("CTRL", "V")
-  elseif clipboard_has_image() then
-    send_shortcut_once("CTRL", "V")
+  if active_window_is_terminal() then
+    hl.exec_cmd(os.getenv("HOME") .. "/.local/bin/terminal-paste")
   else
-    send_shortcut_once("SHIFT", "Insert")
+    send_shortcut_once("CTRL", "V")
   end
 end)
