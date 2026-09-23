@@ -1,150 +1,137 @@
 # Graphite: next design pass
 
-A design brief for the next work on the Graphite theme. It uses a UI concept by [@iamdothash](https://x.com/iamdothash) as a reference. The goal is to take the concept's system, not its look.
+A design brief for the next work on the Graphite theme. The colors and fonts stay as they are. This pass gives Graphite a component system, so that every Omarchy surface uses the same parts in the same way.
+
+Reference: a UI concept by [@iamdothash](https://x.com/iamdothash). Graphite takes its rules (one set of parts, the accent only for state, generous space) and not its forms (centered cards, pill controls, monospace for all text, lavender).
+
+Design canvas with the directions that led here: A Inspector, B Grouped, C Anchored and D Combined. Direction D is the one to build.
 
 ## Summary
 
-Graphite already has good colors. It does not have a component system. The concept is strong because every panel uses the same small set of parts: a card, a row, a pill, a keycap, a toggle, a thin bar and a section label. Each part has one shape, one spacing value and one way to show "selected".
+Direction D combines three explorations:
 
-The next pass must:
-
-1. Define these parts once, as tokens, in the Graphite theme folder.
-2. Apply them to each Omarchy surface that can be styled: menus, keybindings, notifications, the clock and calendar, OSD sliders, the lock screen, the dock and the workspace guide.
-3. Keep what makes Graphite different: the blue accent, SF Pro for labels and SF Mono for values.
-
-## What the concept does
-
-The reference has six panels: Settings, Downloads, Calendar, Wi-Fi/Bluetooth, Notifications and Keybindings.
-
-| Part | How the concept does it |
+| From | Graphite uses |
 |---|---|
-| Panel | Dark card, large radius (about 20px), 1px border that is almost invisible. The panel floats over a colorful background. |
-| Row | Full-width rounded block (about 12px radius), large padding, a label on the left and a value on the right. |
-| Selected state | A lighter fill on the row. No border, no color change on the text. |
-| Accent | One soft lavender. It is used only for state: selected tab, toggle on, slider fill, progress fill, today in the calendar. |
-| Text on accent | Dark text on the light accent fill (the "Wi-Fi" tab, "22" in the calendar). |
-| Section label | Small caps, wide letter spacing, low contrast, tinted toward the accent ("LAUNCH", "DOWNLOADS"). |
-| Secondary text | Gray and small: "780 MB of 1.2 GB · 12 MB/s", "now", "2m". A middle dot separates values. |
-| Status | Short words in muted color: green "done", red "failed · retry", gray "secured". No icons. |
-| Keycap | Each key is its own small rounded chip with a slightly lighter fill ("super", "space", "1-9"). |
-| Controls | Pill toggles, a thin rounded slider with the value as a number next to it, a segmented control for tabs. |
-| Clock | A separate pill with an accent border, time in bright text and the date in gray. |
-| Type | One monospace family everywhere. |
-| Empty space | Few items per panel and a lot of padding. Nothing is dense. |
+| Grouped | Rows in groups. The group name is the first line inside the group. |
+| Inspector | Values in SF Mono, often in small fields with units ("12 px"). Compact rows for data. |
+| Anchored | No borders. Depth comes from tone and shadow. The focused row lifts. Keycaps are outlined. |
 
-## What to take and what to leave
+Panels float. They do not grow out of the bar or a screen edge.
 
-| Take | Leave |
-|---|---|
-| The component set and the rules for state | The lavender and purple palette. It is Tokyo Night's color, and it is the concept's identity. |
-| Accent used only for state, never for decoration | Monospace for all text. Graphite uses SF Pro for labels. |
-| Selected state as a lighter fill | The purple wave wallpaper |
-| Keycap chips for shortcuts | The 2px accent border on the Settings panel (Graphite's menu has this now; see below) |
-| Status as short colored words | |
-| Dark text on accent fills | |
+The groups must not look like macOS. So there are no inset dividers, no icon tiles, no `›` chevrons, no round toggles and no large display titles.
 
-## Graphite's own direction
+## Rules
 
-- **Accent:** keep blue. Add a light blue for fills, so that dark text on it is readable. Saturated `#0a84ff` with white text has a contrast of about 3.6:1, which is too low for small text. Dark text on `#0a84ff` is about 5.3:1.
-- **Type:** SF Pro Text for labels and titles. SF Mono for values, numbers, keycaps, times and file names. This mix is the main difference from the concept, and it makes values easy to scan.
-- **Borders:** 1px, white at 8%. Remove the 2px blue border from the menu. The focus state is the lighter row fill, not the panel border.
-- **Background:** keep the Graphite backgrounds. Panels must work over a plain dark image, not only over a colorful one.
+1. **Lift = where you are.** Keyboard focus and hover lift the row: a lighter fill, a top highlight and a small shadow.
+2. **Blue fill = what is chosen.** Toggle on, today, the selected accent, a slider fill. Blue never marks focus.
+3. **Labels in SF Pro, values in SF Mono.** Numbers, keys, times, file names and counts are always mono.
+4. **No borders.** Tone and shadow separate surfaces. The only lines are keycap outlines.
+5. **Groups carry their own name.** The group name and a mono count sit inside the group, on its first line.
 
 ## Tokens
-
-Add these to `colors.toml` if Omarchy passes extra keys to its templates. If it does not, keep them in one CSS or QML file that the other files import. Check this on the machine.
 
 ### Color
 
 | Token | Value | Use |
 |---|---|---|
 | `surface-0` | `#0e0e10` | Screen behind panels, lock screen |
-| `surface-1` | `#18181a` | Panel background |
-| `surface-2` | `#222224` | Row background, notification card |
-| `surface-3` | `#2c2c2e` | Selected row, keycap, segmented control track |
-| `border` | `rgba(255,255,255,0.08)` | Panel and card edges |
-| `text-1` | `#f5f5f7` | Titles, selected value |
+| `surface-1` | `#18181a` | Panel, value field |
+| `surface-2` | `#222224` | Group |
+| `surface-3` | `#2c2c2e` | Toggle off, slider track |
+| `lift` | `#303033` | Focused row |
+| `text-1` | `#f5f5f7` | Titles, focused row |
 | `text-2` | `#e5e5e7` | Normal text |
-| `text-3` | `#98989d` | Secondary text, values |
-| `text-4` | `#636366` | Disabled items and dividers only. Contrast on `surface-1` is 3:1, too low for text you must read. |
-| `accent` | `#0a84ff` | Slider and progress fill, toggle on |
-| `accent-soft` | `#6cb4ff` | Fills with dark text: selected tab, today, primary button |
-| `on-accent` | `#0e0e10` | Text on `accent` and `accent-soft` |
-| `label-tint` | `#7d8aa3` | Section labels (gray with a small amount of blue) |
-| `ok` | `#7fd48f` | "done", "connected" |
-| `warn` | `#ffcc66` | "paused", "low" |
-| `error` | `#ff8078` | "failed", "retry" |
+| `text-3` | `#98989d` | Values, meta, icons, counts |
+| `text-4` | `#636366` | Disabled items and days outside the month only (3:1 on `surface-1`) |
+| `accent` | `#0a84ff` | Toggle on, slider and progress fill, focused icon |
+| `accent-soft` | `#6cb4ff` | Fills with dark text (today), links |
+| `on-accent` | `#0e0e10` | Text on `accent-soft` |
+| `label-tint` | `#7d8aa3` | Group names, weekday letters |
+| `ok` | `#7fd48f` | "connected", "4 files changed" |
+| `warn` | `#ffcc66` | "3 ready" |
+| `error` | `#ff8078` | "failed" |
+| `keycap-edge` | `rgba(255,255,255,0.14)` | Keycap outline |
+| `highlight` | `rgba(255,255,255,0.06)` | 1px top highlight on panels and the focused row |
 
-Contrast on `surface-1`: `text-3` 6.2:1, `label-tint` 5.1:1, `ok` 9.9:1, `error` 7.3:1, `on-accent` on `accent-soft` 8.8:1.
+Contrast on `surface-1`: `text-3` 6.2:1, `label-tint` 5.1:1, `ok` 9.9:1, `error` 7.3:1. `on-accent` on `accent-soft`: 8.8:1.
 
-The status colors are lighter and less saturated than the terminal colors. Small text in saturated green or red looks too bright on a dark panel.
-
-### Shape and space
+### Shape
 
 | Token | Value |
 |---|---|
-| `radius-panel` | 20px |
-| `radius-row` | 12px |
-| `radius-key` | 8px |
-| `radius-pill` | 999px |
-| `space` | 4px base; use 8, 12, 16, 24 |
-| `panel-padding` | 24px |
-| `row-height` | 48px (menus), 56px (settings-style rows) |
-| `row-padding` | 0 16px |
-| `row-gap` | 4px |
-| `section-gap` | 24px |
-| window `rounding` | 12px (no change) |
-| window `gaps_out` | 8px (no change) |
+| Panel radius | 16px |
+| Group radius | 8px |
+| Row radius | 6px |
+| Field and keycap radius | 5px |
+| Toggle | 40 × 20px, 4px radius; knob 18 × 14px, 2px radius |
+| Window rounding | 12px (no change) |
+| Panel shadow | `inset 0 1px 0 highlight, 0 20px 48px rgba(0,0,0,0.55)` |
+| Lift shadow | `inset 0 1px 0 highlight, 0 2px 8px rgba(0,0,0,0.4)` |
+
+### Space
+
+| Token | Value |
+|---|---|
+| Panel padding | 16px |
+| Group padding | 4px |
+| Gap between rows | 2px |
+| Gap between groups | 10px |
+| Navigation row | 36px high, 8px side padding, 10px from icon to label |
+| Data row | 30px high |
+| Group name row | 26px high |
 
 ### Type
 
-| Role | Font | Size | Weight | Other |
+| Role | Font | Size | Weight | Color |
 |---|---|---|---|---|
-| Panel title | SF Pro Display | 20px | 600 | |
-| Row label | SF Pro Text | 14px | 400 | |
-| Value | SF Mono | 13px | 400 | `text-3` |
-| Section label | SF Pro Text | 11px | 600 | all caps, letter spacing 0.1em, `label-tint` |
-| Keycap | SF Mono | 12px | 500 | lower case, `surface-3` fill |
-| Meta (time, size) | SF Mono | 12px | 400 | `text-3` |
+| Panel title | SF Pro Text | 15px | 600 | `text-1` |
+| Panel meta (right of title) | SF Mono | 11px | 400 | `text-3` |
+| Group name | SF Pro Text | 11px | 600 | `label-tint` |
+| Group count | SF Mono | 11px | 400 | `text-3` |
+| Navigation row | SF Pro Text | 14px | 400 | `text-2` |
+| Data row | SF Pro Text | 13px | 400 | `text-2` |
+| Value | SF Mono | 12px | 400 | `text-3` |
+| Keycap | SF Mono | 11px | 400 | `text-2` |
 
 ## Components
 
-1. **Panel:** `surface-1`, `border`, `radius-panel`, shadow `0 8px 32px rgba(0,0,0,0.45)`, `panel-padding`.
-2. **Row:** `radius-row`, no fill at rest, `surface-3` when selected. Label left, value right. The text color does not change on selection.
-3. **Section label:** above a group of rows, `section-gap` above it and 8px below it.
-4. **Keycap:** one chip per key, 6px between chips, `radius-key`. Use symbols for modifiers where they are clear: ⇧, ↵, ⌫. Keep "super", "alt" and "ctrl" as words.
-5. **Toggle:** 36 × 20px pill. Off: `surface-3` track, `text-4` knob. On: `accent` track, white knob.
-6. **Slider and progress:** 4px track in `surface-3`, `accent` fill, round ends. Show the value as a number in SF Mono to the right.
-7. **Segmented control:** `surface-2` track, `accent-soft` fill for the selected segment with `on-accent` text.
-8. **Status word:** SF Mono 12px in `ok`, `warn` or `error`. Separate two words with " · ".
-9. **Notification card:** `surface-2`, `radius-row`, 32px icon with 8px radius, bold title, body in `text-2`, time in `text-3`.
-10. **Clock pill:** `radius-pill`, 1px `accent` border at 60%, time in `text-1`, date in `text-3`.
+1. **Panel:** `surface-1`, 16px radius, panel shadow, 16px padding. Title row: title left, mono meta right (for example "super space" or "48 bindings").
+2. **Group:** `surface-2`, 8px radius, 4px padding. First line: group name left, mono count or value right. No dividers.
+3. **Row:** 6px radius. Line icon (15px, `text-3`), label, value or keys at the right edge. Focused: `lift` fill, lift shadow, text `text-1`, icon `accent`.
+4. **Value field:** `surface-1` inside a group, 22px high, 5px radius, SF Mono 12px, unit in `text-3` ("12 px", "4 in", "8 out").
+5. **Keycap:** one per key, 20px high, 1px `keycap-edge` outline with a 2px bottom edge, 5px radius, 4px between keys. Symbols for ⇧ and ↵; words for super, alt, ctrl, esc.
+6. **Toggle:** rounded rectangle as in Shape. Off: `surface-3` track, `text-3` knob on the left. On: `accent` track, `text-1` knob on the right.
+7. **Slider:** 4px track in `surface-3`, `accent` fill, value field on the right ("62 %").
+8. **Status text:** SF Mono 12px in `ok`, `warn` or `error`.
+9. **Notification:** a panel with 12px padding. Line icon in `accent-soft`, title 14px semibold, mono time right, body in `text-3`.
+10. **Calendar:** weekday letters in `label-tint`, days in SF Mono, weekends in `text-3`, days outside the month in `text-4`, today as an `accent-soft` square (6px radius) with `on-accent` text.
+11. **OSD:** a small panel (48px high, 14px radius) with an icon, a slider and a value field.
 
 ## Surfaces, in order of value
 
 | # | Surface | What to change | Notes |
 |---|---|---|---|
-| 1 | Omarchy menu and launcher (Quickshell) | Panel, rows, selected state, section labels, remove 2px blue border | Most-used surface. Find where the Quickshell menu reads its theme. |
-| 2 | Keybindings (Super+K) | Keycap chips, two columns, grouped with section labels | Goes with the column fix in the README. Keycaps need one element per key, so this needs the menu to draw columns. |
-| 3 | Notifications (mako) | Notification card, status colors, icon radius | Mako cannot right-align the time. Put it after the title or leave it out. |
-| 4 | Waybar clock and calendar | Clock pill, today as `accent-soft` fill with `on-accent` text | The calendar tooltip supports Pango markup. A filled circle may not be possible there; a bold, colored date is. |
-| 5 | OSD (swayosd) | Thin slider, value as a number | |
-| 6 | Dock (nwg-dock) | Use tokens, not fixed hex values | Fixes the gap where the dock does not follow the theme. |
-| 7 | Lock screen (hyprlock) | Clock pill style, password field as a row | |
-| 8 | Workspace guide (HTML) | Panels, rows, keycaps, section labels | Full control in HTML. Use it as the reference page for the components. |
+| 1 | Omarchy menu (Quickshell) | Panel, groups with names, rows with line icons, lift for focus, keycaps for shortcuts. Remove the 2px blue border. | Most-used surface. Find where the Quickshell menu reads its theme. |
+| 2 | Keybindings (Super+K) | Two columns of groups (Launch, Design, Windows, Workspaces), keycaps | Needs the column fix in the README. Keycaps need one element per key. |
+| 3 | Notifications (mako) | Notification component | Mako cannot put the time at the right edge. Put it after the title. |
+| 4 | Waybar clock and calendar | Mono clock, calendar component | The tooltip uses Pango markup. A filled square for today may not be possible; a bold `accent-soft` date is. |
+| 5 | OSD (swayosd) | OSD component | |
+| 6 | Dock (nwg-dock) | Tokens, not fixed hex values | Also makes the dock follow the theme. |
+| 7 | Lock screen (hyprlock) | Mono clock, password field as a value field | |
+| 8 | Workspace guide (HTML) | All components | Full control. Build it first as the component sheet. |
 
-Wi-Fi and Bluetooth in Omarchy are terminal apps (impala and bluetui). They take only the terminal colors, so the segmented control and status words from the concept do not apply there without a new widget.
+Wi-Fi and Bluetooth are terminal apps (impala and bluetui). They take only the terminal colors.
 
-## Suggested order for the session
+## Order for the session
 
-1. Build the workspace guide first, as a component sheet. It is HTML, so every component can be made exactly and checked on screen.
-2. Move the tokens into the theme folder.
-3. Apply them to the Quickshell menu, then keybindings, then mako, waybar, swayosd, the dock and hyprlock.
-4. Take screenshots of each surface before and after, into `docs/screenshots/`.
+1. Build the workspace guide as the component sheet. It is HTML, so every component can be made exactly and checked on screen.
+2. Put the tokens in the theme folder.
+3. Apply them to the Quickshell menu, then keybindings, mako, waybar, swayosd, the dock and hyprlock.
+4. Take a screenshot of each surface before and after, into `docs/screenshots/`.
 5. Update the README theme section.
 
 ## Check on the machine
 
 - Which files in a theme folder Omarchy 4 reads for the Quickshell menu, waybar, mako, swayosd and hyprlock.
-- Whether `colors.toml` accepts extra keys and passes them to templates.
-- Whether the Quickshell menu can draw one chip per key, or only a text line.
+- Whether `colors.toml` accepts extra keys and passes them to templates. If not, keep the tokens in one CSS or QML file that the others import.
+- Whether the Quickshell menu can draw one keycap per key and show a group name inside a group.
