@@ -63,7 +63,7 @@ Contrast on `surface-1`: `text-3` 6.2:1, `label-tint` 5.1:1, `ok` 9.9:1, `error`
 | Group radius | 8px |
 | Row radius | 6px |
 | Field and keycap radius | 5px |
-| Toggle | 40 × 20px, 4px radius; knob 18 × 14px, 2px radius |
+| Toggle | Track 36 × 18px, 5px radius. Knob 16 × 14px, 3px radius, 2px from the track edge (inner radius = outer radius − inset). |
 | Window rounding | 12px (no change) |
 | Panel shadow | `inset 0 1px 0 highlight, 0 20px 48px rgba(0,0,0,0.55)` |
 | Lift shadow | `inset 0 1px 0 highlight, 0 2px 8px rgba(0,0,0,0.4)` |
@@ -100,7 +100,7 @@ Contrast on `surface-1`: `text-3` 6.2:1, `label-tint` 5.1:1, `ok` 9.9:1, `error`
 3. **Row:** 6px radius. Line icon (15px, `text-3`), label, value or keys at the right edge. Focused: `lift` fill, lift shadow, text `text-1`, icon `accent`.
 4. **Value field:** `surface-1` inside a group, 22px high, 5px radius, SF Mono 12px, unit in `text-3` ("12 px", "4 in", "8 out").
 5. **Keycap:** one per key, 20px high, 1px `keycap-edge` outline with a 2px bottom edge, 5px radius, 4px between keys. Symbols for ⇧ and ↵; words for super, alt, ctrl, esc.
-6. **Toggle:** rounded rectangle as in Shape. Off: `surface-3` track, `text-3` knob on the left. On: `accent` track, `text-1` knob on the right.
+6. **Toggle:** rounded rectangle as in Shape. Off: `surface-3` track with an inner shadow (`inset 0 1px 2px rgba(0,0,0,0.45)`), `#c7c7cc` knob on the left. On: `accent` track with a top highlight (`inset 0 1px 0 rgba(255,255,255,0.18)`), white knob on the right. Knob shadow in both states: `0 1px 2px rgba(0,0,0,0.4)`.
 7. **Slider:** 4px track in `surface-3`, `accent` fill, value field on the right ("62 %").
 8. **Status text:** SF Mono 12px in `ok`, `warn` or `error`.
 9. **Notification:** a panel with 12px padding. Line icon in `accent-soft`, title 14px semibold, mono time right, body in `text-3`.
