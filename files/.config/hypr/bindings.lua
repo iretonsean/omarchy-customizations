@@ -28,6 +28,13 @@
 -- o.bind("SUPER + H", nil, "voxtype record toggle")
 -- o.bind("SUPER + PERIOD", nil, "omarchy-shell shell toggle omarchy.emojis")
 
+-- Files: open it through D-Bus, so it has the pointer cursor on rows and
+-- buttons (~/.local/bin/files-open). Same keys as Omarchy's defaults.
+hl.unbind("SUPER + SHIFT + F")
+o.bind("SUPER + SHIFT + F", "File manager", os.getenv("HOME") .. "/.local/bin/files-open")
+hl.unbind("SUPER + ALT + SHIFT + F")
+o.bind("SUPER + ALT + SHIFT + F", "File manager (cwd)", os.getenv("HOME") .. '/.local/bin/files-open "$(omarchy-cmd-terminal-cwd)"')
+
 -- Projects menu: open a Claude session, files or a terminal for a project.
 o.bind("SUPER + D", "Projects", "omarchy-menu toggle projects")
 

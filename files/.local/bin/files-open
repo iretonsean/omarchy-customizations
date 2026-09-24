@@ -1,0 +1,8 @@
+#!/bin/bash
+# Open a Files window. Files is started through D-Bus first, so it runs with
+# the pointer cursor library (see ~/.local/bin/gtk4-pointer-run). The new
+# window then opens in that copy of Files.
+# Usage: files-open [folder]
+gdbus call --session --dest org.gnome.Nautilus --object-path /org/gnome/Nautilus \
+  --method org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1
+exec setsid uwsm-app -- nautilus --new-window "$@"

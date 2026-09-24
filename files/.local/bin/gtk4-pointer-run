@@ -1,0 +1,8 @@
+#!/bin/sh
+# Run a GTK 4 app with the pointer cursor on clickable widgets.
+# The library (built by install.sh from ~/.local/src/gtk4-pointer) reads its
+# rules from ~/.config/gtk-4.0/pointer.conf.
+# Usage: gtk4-pointer-run <command> [args...]
+lib="$HOME/.local/lib/libgtk4-pointer.so"
+[ -f "$lib" ] && export LD_PRELOAD="$lib${LD_PRELOAD:+:$LD_PRELOAD}"
+exec "$@"
