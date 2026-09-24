@@ -1,15 +1,22 @@
 // Notification card. Pure presentational — no service, Notification, or
 // ListModel references. The popup container drives lifetime; the history
 // panel drives static rendering. Both use the same component.
+//
+// Graphite (docs/theme-direction.md, Components 9): a panel with 12px
+// padding, no border, a line icon in accent-soft, the title in SF Pro 14px
+// semibold with the time in SF Mono at the right edge, the body in text-3.
+// Hover lifts the card. The properties and signals are the stock card's, so
+// Service.qml drives it unchanged.
 
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import qs.Commons
-import qs.Ui
 import "../NotificationLogic.js" as NotificationLogic
+import "../../graphite-ui" as G
 
-BorderSurface {
+Item {
   id: root
 
   property string app: ""
@@ -25,9 +32,11 @@ BorderSurface {
   // NotificationUrgency: Low=0, Normal=1, Critical=2 (upstream).
   property int urgency: 1
   property double timestamp: 0
+  // Accepted for compatibility. The card uses the Graphite panel radius.
   property int cornerRadius: 0
 
-  // System monospace font injected by the container.
+  // System monospace font injected by the container. Accepted for
+  // compatibility; glyphs use the Graphite value font (a Nerd Font).
   property string fontFamily: ""
 
   readonly property bool hovered: hoverTracker.hovered
@@ -38,7 +47,6 @@ BorderSurface {
   // The `check` flag avoids Qt's missing-texture placeholder for unknown names.
   readonly property string smallIconSource: image.length > 0 ? image : iconSource(appIcon)
   readonly property bool hasGlyph: glyph.length > 0
-  readonly property bool compactGlyph: NotificationLogic.shouldRenderCompactGlyph(glyph, smallIconSource, singleLineToast)
   readonly property bool hasSmallIcon: smallIconSource.length > 0
   readonly property bool summaryStartsWithGlyph: NotificationLogic.summaryStartsWithGlyph(summary)
   readonly property bool singleLineToast: sanitizedBody.length === 0
@@ -46,10 +54,44 @@ BorderSurface {
   readonly property string sanitizedBody: sanitizeBody(body)
   readonly property string styledBody: NotificationLogic.styledBody(body, app, appIcon)
 
-  readonly property color dimColor: Qt.darker(Color.notifications.text, 1.4)
-  readonly property color bodyColor: Qt.darker(Color.notifications.text, 1.15)
-  readonly property color accentColor: urgency === 2 ? Color.urgent : (urgency === 0 ? dimColor : Color.notifications.countdown)
-  readonly property var cardBorderSpec: Border.surfaceSpec("notifications", "border", Color.notifications.border, Math.max(1, Style.space(2)))
+  readonly property bool critical: urgency === 2
+
+  // Icon slot. As in the stock card, a glyph shows until a real icon has
+  // loaded, and an icon that fails to load (a themed name the icon theme
+  // lacks) shows nothing rather than Qt's broken-image placeholder.
+  readonly property bool imageReady: smallIconImage.status === Image.Ready
+  readonly property bool showImage: !collapseRedundantIcon && hasSmallIcon
+                                    && (imageReady || (!hasGlyph && smallIconImage.status !== Image.Error))
+  readonly property bool showGlyph: !collapseRedundantIcon && hasGlyph && !imageReady
+
+  // Card padding and the gap from icon to text (brief: 12px and 10px).
+  readonly property int padding: 12
+  readonly property int iconGap: 10
+  // App icons and images are larger than a line icon, so they stay readable.
+  readonly property int imageSize: 32
+  readonly property int glyphSize: 15
+
+  // Time since the notification arrived: "now", then "2m", "1h", "3d".
+  property double now: Date.now()
+  readonly property string timeText: relativeTime(timestamp, now)
+
+  function relativeTime(ts, nowMs) {
+    if (!(ts > 0)) return ""
+    var seconds = Math.max(0, Math.floor((nowMs - ts) / 1000))
+    if (seconds < 60) return "now"
+    var minutes = Math.floor(seconds / 60)
+    if (minutes < 60) return minutes + "m"
+    var hours = Math.floor(minutes / 60)
+    if (hours < 24) return hours + "h"
+    return Math.floor(hours / 24) + "d"
+  }
+
+  Timer {
+    interval: 15000
+    repeat: true
+    running: root.visible && root.timestamp > 0
+    onTriggered: root.now = Date.now()
+  }
 
   function sanitizeBody(s) {
     return NotificationLogic.sanitizeBody(s, app, appIcon)
@@ -64,13 +106,42 @@ BorderSurface {
   }
 
   implicitWidth: Style.space(380)
-  // Add vertical border insets so mainColumn (inset by border on top/left/right)
-  // doesn't push content under the bottom edge.
-  implicitHeight: mainColumn.implicitHeight + borderTop + borderBottom
-  radius: cornerRadius
-  color: Color.notifications.background
-  borderSpec: cardBorderSpec
-  clip: true
+  implicitHeight: content.implicitHeight + padding * 2
+
+  // Hover lifts the card (rule 1): the lift fill fades in over 80ms.
+  property real liftOpacity: root.hovered ? 1 : 0
+  Behavior on liftOpacity { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
+
+  // Panel shadow, outside the card.
+  RectangularShadow {
+    anchors.fill: card
+    radius: G.Tokens.radiusPanel
+    offset.y: 20
+    blur: 48
+    color: Qt.rgba(0, 0, 0, 0.55)
+  }
+
+  Rectangle {
+    id: card
+    anchors.fill: parent
+    radius: G.Tokens.radiusPanel
+    color: G.Tokens.surface1
+
+    Rectangle {
+      anchors.fill: parent
+      radius: parent.radius
+      color: G.Tokens.lift
+      opacity: root.liftOpacity
+      visible: opacity > 0
+    }
+
+    // 1px top highlight.
+    Rectangle {
+      anchors { top: parent.top; left: parent.left; right: parent.right; leftMargin: G.Tokens.radiusPanel; rightMargin: G.Tokens.radiusPanel }
+      height: 1
+      color: G.Tokens.highlight
+    }
+  }
 
   HoverHandler { id: hoverTracker }
 
@@ -87,110 +158,104 @@ BorderSurface {
     }
   }
 
-  ColumnLayout {
-    id: mainColumn
-    // Inset by the card border so the content doesn't paint over the card's
-    // outer border.
+  RowLayout {
+    id: content
     anchors.top: parent.top
     anchors.left: parent.left
     anchors.right: parent.right
-    anchors.topMargin: root.borderTop
-    anchors.leftMargin: root.borderLeft
-    anchors.rightMargin: root.borderRight
-    spacing: 0
+    anchors.margins: root.padding
+    spacing: iconSlot.visible ? root.iconGap : 0
 
-    // Text content.
-    RowLayout {
-      Layout.fillWidth: true
-      Layout.leftMargin: Style.space(12)
-      Layout.rightMargin: Style.space(12)
-      Layout.topMargin: root.singleLineToast ? Style.space(7) : Style.space(10)
-      Layout.bottomMargin: root.singleLineToast ? Style.space(7) : Style.space(10)
-      spacing: root.collapseRedundantIcon ? 0 : (root.compactGlyph ? Style.space(8) : Style.space(12))
+    Item {
+      id: iconSlot
+      Layout.alignment: Qt.AlignTop
+      // A line glyph sits on the title line; an image starts at the top.
+      Layout.topMargin: root.showImage ? 0 : 2
+      Layout.preferredWidth: visible ? (root.showImage ? root.imageSize : root.glyphSize) : 0
+      Layout.preferredHeight: visible ? (root.showImage ? root.imageSize : root.glyphSize) : 0
+      visible: root.showImage || root.showGlyph
 
+      // App icons and images keep rounded corners (no square cut).
       Item {
-        id: smallIconSlot
-        Layout.preferredWidth: visible ? Style.space(40) : 0
-        Layout.preferredHeight: visible ? Style.space(40) : 0
-        Layout.alignment: Qt.AlignVCenter
-        // Hide the slot when the icon failed to resolve (themed-icon name
-        // not in the user's icon theme) AND we don't have a glyph fallback
-        // — prevents rendering Qt's pink broken-image placeholder.
-        visible: !root.collapseRedundantIcon && !root.compactGlyph && (root.hasSmallIcon || root.hasGlyph) && (root.hasGlyph || smallIconImage.status !== Image.Error)
+        anchors.fill: parent
+        visible: root.showImage
+        layer.enabled: true
+        layer.effect: G.RoundedClip { radius: G.Tokens.radiusRow }
 
         Image {
           id: smallIconImage
           anchors.fill: parent
           source: root.smallIconSource
-          sourceSize.width: smallIconSlot.width * Screen.devicePixelRatio
-          sourceSize.height: smallIconSlot.height * Screen.devicePixelRatio
+          sourceSize.width: root.imageSize * Screen.devicePixelRatio
+          sourceSize.height: root.imageSize * Screen.devicePixelRatio
           fillMode: Image.PreserveAspectFit
           asynchronous: true
           smooth: true
-          visible: !root.hasGlyph || smallIconImage.status === Image.Ready
-        }
-
-        // Glyph fallback (Nerd Font character) when no image icon is
-        // available. Used by omarchy-notification-send's `-g` flag.
-        Text {
-          textFormat: Text.PlainText
-          anchors.centerIn: parent
-          visible: root.hasGlyph && smallIconImage.status !== Image.Ready
-          text: root.glyph
-          color: Color.notifications.text
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.displayLarge
         }
       }
 
+      // Glyph fallback (Nerd Font character) when no image icon is
+      // available. Used by omarchy-notification-send's `-g` flag.
       Text {
         textFormat: Text.PlainText
-        Layout.alignment: Qt.AlignVCenter
-        visible: root.compactGlyph
+        anchors.centerIn: parent
+        visible: root.showGlyph
         text: root.glyph
-        color: Color.notifications.text
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.icon
+        color: root.critical ? G.Tokens.error : G.Tokens.accentSoft
+        font.family: G.Tokens.valueFont
+        font.pixelSize: root.glyphSize
       }
+    }
 
-      ColumnLayout {
+    ColumnLayout {
+      Layout.fillWidth: true
+      Layout.alignment: Qt.AlignTop
+      spacing: 2
+
+      RowLayout {
         Layout.fillWidth: true
-        Layout.alignment: Qt.AlignVCenter
-        spacing: Style.space(2)
+        spacing: 8
 
-        Text {
+        G.Label {
           // The spec defines the summary as a single line of plain text, so
           // AutoText could only ever promote a hostile string to rich text.
           // The body below is StyledText on purpose — see Service.qml's
           // bodyMarkupSupported — and is stripped in NotificationLogic.
-          textFormat: Text.PlainText
           Layout.fillWidth: true
-          visible: root.summary.length > 0
+          Layout.alignment: Qt.AlignBaseline
+          nav: true
           text: root.summary
-          font.family: "Liberation Sans"
-          color: Color.notifications.text
-          font.pixelSize: Style.font.title
-          font.bold: true
+          color: G.Tokens.text1
+          font.weight: Font.DemiBold
           wrapMode: Text.WordWrap
-          elide: Text.ElideRight
           maximumLineCount: 2
         }
 
-        Text {
-          Layout.fillWidth: true
-          Layout.topMargin: Style.space(2)
-          visible: root.sanitizedBody.length > 0
-          text: root.styledBody
-          textFormat: Text.StyledText
-          font.family: "Liberation Sans"
-          color: root.bodyColor
-          font.pixelSize: Style.font.title
-          wrapMode: Text.WordWrap
-          elide: Text.ElideRight
-          maximumLineCount: 3
+        // Critical notifications stay until dismissed; say why.
+        G.StatusText {
+          Layout.alignment: Qt.AlignBaseline
+          visible: root.critical
+          status: "error"
+          text: "urgent"
         }
+
+        G.PanelMeta {
+          Layout.alignment: Qt.AlignBaseline
+          visible: root.timeText.length > 0
+          text: root.timeText
+        }
+      }
+
+      G.Label {
+        Layout.fillWidth: true
+        visible: root.sanitizedBody.length > 0
+        text: root.styledBody
+        textFormat: Text.StyledText
+        color: G.Tokens.text3
+        linkColor: G.Tokens.accentSoft
+        wrapMode: Text.WordWrap
+        maximumLineCount: 3
       }
     }
   }
-
 }
