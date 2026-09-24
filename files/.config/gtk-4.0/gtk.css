@@ -1,0 +1,166 @@
+/* Graphite components in GTK 4 apps (docs/theme-direction.md).
+   The tokens come from the current theme's graphite.css, made by
+   ~/.config/omarchy/themed/graphite.css.tpl. Rules below apply only
+   to the Files app (Nautilus). */
+@import url("../../.local/state/omarchy/current/theme/graphite.css");
+
+/* Files: the window is the panel, the sidebar is a group. No borders. */
+window.nautilus-window {
+  --window-bg-color: var(--surface-1);
+  --window-fg-color: var(--text-2);
+  --view-bg-color: var(--surface-1);
+  --view-fg-color: var(--text-2);
+  --headerbar-bg-color: var(--surface-1);
+  --headerbar-fg-color: var(--text-2);
+  --headerbar-backdrop-color: var(--surface-1);
+  --headerbar-border-color: transparent;
+  --headerbar-shade-color: transparent;
+  --sidebar-bg-color: var(--surface-2);
+  --sidebar-fg-color: var(--text-2);
+  --sidebar-backdrop-color: var(--surface-2);
+  --sidebar-border-color: transparent;
+  --sidebar-shade-color: transparent;
+  --popover-bg-color: var(--surface-1);
+  --popover-fg-color: var(--text-2);
+  --card-bg-color: var(--surface-2);
+  --accent-bg-color: var(--accent);
+  --accent-color: var(--accent-soft);
+  font-family: "SF Pro Text";
+}
+
+/* Title: panel title. */
+window.nautilus-window headerbar .title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+/* Header buttons: quiet icons, lift on hover. */
+window.nautilus-window headerbar button {
+  border-radius: 6px;
+  color: var(--text-3);
+}
+
+window.nautilus-window headerbar button:hover,
+window.nautilus-window headerbar button:checked {
+  background-color: var(--lift);
+  box-shadow: var(--shadow-lift);
+  color: var(--text-1);
+}
+
+/* Sidebar: navigation rows. Lift marks where you are. Gaps, not lines,
+   separate the sections. */
+window.nautilus-window .navigation-sidebar {
+  padding: 4px;
+  background: transparent;
+}
+
+window.nautilus-window .navigation-sidebar > row {
+  min-height: 36px;
+  margin: 1px 0;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+window.nautilus-window .navigation-sidebar > row box {
+  border-spacing: 10px;
+}
+
+window.nautilus-window .navigation-sidebar > row image {
+  color: var(--text-3);
+}
+
+window.nautilus-window .navigation-sidebar > row:hover,
+window.nautilus-window .navigation-sidebar > row:selected {
+  background-color: var(--lift);
+  box-shadow: var(--shadow-lift);
+  color: var(--text-1);
+}
+
+window.nautilus-window .navigation-sidebar > row:hover image,
+window.nautilus-window .navigation-sidebar > row:selected image {
+  color: var(--accent);
+}
+
+window.nautilus-window .navigation-sidebar > separator {
+  min-height: 0;
+  margin: 5px 0;
+  background: transparent;
+}
+
+/* Path bar: a group. Folder names are file names, so they are mono. */
+window.nautilus-window .nautilus-pathbar {
+  background-color: var(--surface-2);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+window.nautilus-window .nautilus-path-button label {
+  font-family: "SF Mono", "SFMono Nerd Font Mono", monospace;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+window.nautilus-window .nautilus-path-button.current-dir label {
+  color: var(--text-1);
+}
+
+window.nautilus-window .nautilus-path-button image {
+  color: var(--text-3);
+}
+
+/* File names, sizes and dates: values, in mono. */
+window.nautilus-window .nautilus-view-cell label {
+  font-family: "SF Mono", "SFMono Nerd Font Mono", monospace;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+window.nautilus-window .nautilus-list-view columnview > listview > row > cell:not(:first-child) label,
+window.nautilus-window .nautilus-list-view .numeric,
+window.nautilus-window .nautilus-list-view .dim-label {
+  color: var(--text-3);
+}
+
+/* List view column names: group names. */
+window.nautilus-window .nautilus-list-view columnview > header > button {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--label-tint);
+  box-shadow: none;
+}
+
+/* Hover lifts a file. Selection is a choice, so it is blue. */
+window.nautilus-window .nautilus-grid-view gridview > child,
+window.nautilus-window .nautilus-list-view columnview > listview > row {
+  border-radius: 6px;
+}
+
+window.nautilus-window .nautilus-grid-view gridview > child.activatable:hover,
+window.nautilus-window .nautilus-list-view columnview > listview > row.activatable:hover {
+  background-color: var(--lift);
+  box-shadow: var(--shadow-lift);
+}
+
+window.nautilus-window .nautilus-grid-view gridview > child:selected,
+window.nautilus-window .nautilus-list-view columnview > listview > row:selected {
+  background-color: color-mix(in srgb, var(--accent) 28%, transparent);
+  box-shadow: none;
+}
+
+window.nautilus-window .nautilus-grid-view gridview > child:selected label,
+window.nautilus-window .nautilus-list-view columnview > listview > row:selected label {
+  color: var(--text-1);
+}
+
+/* Status bar at the bottom: a small panel. */
+window.nautilus-window .floating-bar {
+  background-color: var(--surface-2);
+  border-radius: 8px 0 0 0;
+  box-shadow: none;
+  font-family: "SF Mono", "SFMono Nerd Font Mono", monospace;
+  font-size: 12px;
+  color: var(--text-3);
+}
