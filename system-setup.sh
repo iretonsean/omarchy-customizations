@@ -2,7 +2,7 @@
 # System changes for the trackpad. Needs sudo; install.sh runs it too.
 #
 # - Scroll momentum in apps without their own (~/.local/bin/trackpad-momentum)
-#   reads the trackpad and creates a virtual scroll wheel. That needs the
+#   reads the trackpad and creates a virtual trackpad. That needs the
 #   "input" group and access to /dev/uinput.
 # - The T2 MacBook's keyboard and trackpad are labelled "external", so
 #   libinput never pauses the trackpad while you type. A udev rule labels
