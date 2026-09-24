@@ -1,7 +1,7 @@
 #!/bin/bash
 # System changes for the trackpad. Needs sudo; install.sh runs it too.
 #
-# - Scroll momentum in Chromium and Electron apps (~/.local/bin/trackpad-momentum)
+# - Scroll momentum in apps without their own (~/.local/bin/trackpad-momentum)
 #   reads the trackpad and creates a virtual scroll wheel. That needs the
 #   "input" group and access to /dev/uinput.
 # - The T2 MacBook's keyboard and trackpad are labelled "external", so

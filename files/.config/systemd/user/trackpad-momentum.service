@@ -1,5 +1,5 @@
 [Unit]
-Description=Scroll momentum for Chromium and Electron apps (~/.local/bin/trackpad-momentum)
+Description=Trackpad scroll momentum (~/.local/bin/trackpad-momentum)
 PartOf=graphical-session.target
 After=graphical-session.target
 

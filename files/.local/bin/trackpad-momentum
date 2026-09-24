@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""Scroll momentum for Chromium and Electron apps on a trackpad.
+"""Scroll momentum on a trackpad, in every app.
 
-GTK apps continue a two-finger scroll after the fingers lift (momentum).
-Chromium and Electron apps on Linux do not. This program adds it for them:
+Most apps on Linux stop scrolling the moment two fingers lift (Chromium,
+Electron apps, terminals, Qt apps). This program continues the scroll:
 
 1. It reads the trackpad's finger positions (/dev/input, read only; it does
    not take the device from Hyprland).
-2. When two fingers lift during a scroll, it works out their speed.
-3. If the window with focus is a Chromium or Electron app, it keeps
-   scrolling through a virtual scroll wheel (/dev/uinput) and slows down
-   like macOS. A new touch stops it at once.
+2. When two fingers lift after a real scroll, it works out their speed.
+3. It keeps scrolling the window under the pointer through a virtual scroll
+   wheel (/dev/uinput) and slows down smoothly. A new touch stops it at once.
+
+Apps with momentum of their own (GTK apps such as Files, Firefox) are
+skipped, so they do not scroll twice. Nothing happens over a panel, menu or
+the dock.
 
 It needs read access to /dev/input and write access to /dev/uinput: the user
 must be in the "input" group (install.sh sets this up). Settings are in
@@ -59,15 +62,25 @@ DEFAULTS = {
     "units_per_mm": 36.0,
     # Multiplies the momentum speed.
     "speed": 1.0,
-    # Speed kept per millisecond; 0.998 is the macOS default.
+    # Speed kept per millisecond; 0.998 gives a long, smooth glide.
     "deceleration": 0.998,
-    # Finger speed (mm/s) needed to start momentum, and the speed where it stops.
-    "start_speed": 60.0,
+    # Finger speed (mm/s) needed to start momentum, the highest speed used,
+    # and the speed where momentum stops.
+    "start_speed": 100.0,
+    "max_speed": 1500.0,
     "stop_speed": 8.0,
+    # A fling needs a real scroll: this much finger travel (mm) in the whole
+    # gesture, and this much in the last 100 ms before the lift.
+    "min_travel_mm": 8.0,
+    "window_travel_mm": 2.0,
+    # The contact shrinks as fingers lift and its position jumps; ignore
+    # this many milliseconds before the lift.
+    "lift_trim_ms": 25.0,
     # The fingers must still be moving this close (ms) to the lift.
     "max_pause_ms": 60.0,
-    # Window classes that get momentum (regular expression).
-    "apps": r"^(chromium|Chromium|google-chrome|chrome-.*|obsidian|com\.t3tools\.T3Code|t3code|Electron|code|Code|Slack|discord)$",
+    # Window classes that do NOT get momentum, because they have their own
+    # (regular expression).
+    "skip_apps": r"^(org\.gnome\..*|nautilus|firefox|firefox-.*|librewolf)$",
 }
 
 CONFIG = os.path.expanduser("~/.config/trackpad-momentum.conf")
@@ -83,8 +96,8 @@ def load_config():
                     continue
                 key, value = (part.strip() for part in line.split("=", 1))
                 if key in DEFAULTS:
-                    config[key] = value if key == "apps" else float(value)
-    config["apps_re"] = re.compile(config["apps"])
+                    config[key] = value if key == "skip_apps" else float(value)
+    config["skip_re"] = re.compile(config["skip_apps"])
     return config
 
 
@@ -168,8 +181,25 @@ def hypr_json(*args):
 
 
 def momentum_wanted(config):
+    """True when the pointer is over an app window without momentum of its own."""
+    cursor = hypr_json("cursorpos")
+    cx, cy = cursor.get("x"), cursor.get("y")
+    if cx is None:
+        return False
+    # Panels, menus, the dock and notifications sit on the top and overlay
+    # layers. A thin edge strip (the dock's hot spot) does not count.
+    for monitor in hypr_json("layers").values():
+        for level in ("2", "3"):
+            for layer in monitor.get("levels", {}).get(level, []):
+                if layer.get("w", 0) < 8 or layer.get("h", 0) < 8:
+                    continue
+                if layer["x"] <= cx < layer["x"] + layer["w"] and layer["y"] <= cy < layer["y"] + layer["h"]:
+                    return False
     window = hypr_json("activewindow")
-    return bool(window) and bool(config["apps_re"].match(str(window.get("class", ""))))
+    if not window or config["skip_re"].match(str(window.get("class", ""))):
+        return False
+    (wx, wy), (ww, wh) = window.get("at", (0, 0)), window.get("size", (0, 0))
+    return wx <= cx < wx + ww and wy <= cy < wy + wh
 
 
 def natural_scroll():
@@ -183,7 +213,8 @@ def run(config, device_path):
 
     slots, slot = {}, 0            # slot -> [tracking_id, x, y]
     fingers = 0
-    samples = deque(maxlen=64)     # (time, cx_mm, cy_mm) while two fingers scroll
+    samples = deque(maxlen=256)    # (time, cx_mm, cy_mm) while two fingers scroll
+    travel = 0.0                   # finger travel (mm) in this two-finger gesture
     velocity = None                # [vx, vy] in mm/s while momentum runs
     natural = True                 # natural scrolling was on at the lift
     last_tick = 0.0
@@ -227,11 +258,14 @@ def run(config, device_path):
                     if fingers == 2 and len(points) == 2:
                         cx = sum(p[0] for p in points) / 2 / res_x
                         cy = sum(p[1] for p in points) / 2 / res_y
+                        if samples:
+                            travel += ((cx - samples[-1][1]) ** 2 + (cy - samples[-1][2]) ** 2) ** 0.5
                         samples.append((now, cx, cy))
                     elif samples and fingers < 2:
-                        fling = start_momentum(config, samples, now)
+                        fling = start_momentum(config, samples, now, travel)
                         velocity, natural = (fling[:2], fling[2]) if fling else (None, True)
                         samples.clear()
+                        travel = 0.0
                         last_tick = now
                         wheel.reset()
 
@@ -250,26 +284,40 @@ def run(config, device_path):
             wheel.scroll(sign * velocity[1] * scale, -sign * velocity[0] * scale)
 
 
-def start_momentum(config, samples, now):
+def start_momentum(config, samples, now, travel):
     """[vx, vy, natural] at the lift (mm/s), or None when there is no fling."""
-    last_t, last_x, last_y = samples[-1]
-    if (now - last_t) * 1000 > config["max_pause_ms"]:
+    if travel < config["min_travel_mm"]:
         return None
-    window = [s for s in samples if last_t - s[0] <= 0.08]
-    if len(window) < 3:
+    # Leave out the last moments before the lift: the contact shrinks and its
+    # position jumps, which would read as a fast flick.
+    end = samples[-1][0] - config["lift_trim_ms"] / 1000
+    kept = [s for s in samples if s[0] <= end]
+    if not kept or (now - kept[-1][0]) * 1000 > config["max_pause_ms"] + config["lift_trim_ms"]:
         return None
-    t0, x0, y0 = window[0]
-    dt = last_t - t0
-    if dt <= 0:
+    window = [s for s in kept if kept[-1][0] - s[0] <= 0.1]
+    if len(window) < 4:
         return None
-    vx, vy = (last_x - x0) / dt, (last_y - y0) / dt
+    moved = ((window[-1][1] - window[0][1]) ** 2 + (window[-1][2] - window[0][2]) ** 2) ** 0.5
+    if moved < config["window_travel_mm"]:
+        return None
+    # Least-squares slope over the window: steadier than first-to-last.
+    n = len(window)
+    mt = sum(s[0] for s in window) / n
+    var = sum((s[0] - mt) ** 2 for s in window)
+    if var <= 0:
+        return None
+    vx = sum((s[0] - mt) * s[1] for s in window) / var
+    vy = sum((s[0] - mt) * s[2] for s in window) / var
     # Lock to the main axis, as scrolling does.
     if abs(vy) >= 2 * abs(vx):
         vx = 0.0
     elif abs(vx) >= 2 * abs(vy):
         vy = 0.0
-    if max(abs(vx), abs(vy)) < config["start_speed"]:
+    speed = max(abs(vx), abs(vy))
+    if speed < config["start_speed"]:
         return None
+    if speed > config["max_speed"]:
+        vx, vy = vx * config["max_speed"] / speed, vy * config["max_speed"] / speed
     if not momentum_wanted(config):
         return None
     return [vx, vy, natural_scroll()]
