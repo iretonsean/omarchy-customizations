@@ -157,6 +157,10 @@ Wi-Fi, Bluetooth, Audio, Display and Claude Code. One click on another bar icon 
 | Disk speed | ![Disk speed test before](docs/screenshots/disk-speedtest-before.png) | ![Disk speed test after](docs/screenshots/disk-speedtest-after.png) |
 | Wi-Fi QR code | ![Wi-Fi QR code before](docs/screenshots/wifiqr-before.png) | ![Wi-Fi QR code after](docs/screenshots/wifiqr-after.png) |
 
+### Notifications
+
+Notifications are Graphite panels: no border, the title in SF Pro, the time since arrival at the right edge ("now", "2m") and line icons in the accent color. App icons and images keep rounded corners. Critical notifications show "urgent". The behavior is Omarchy's: do not disturb, history and the keybindings work as before. `docs/screenshots/demo/demo-notifications` sends a set of made-up notifications.
+
 ### Files
 
 Graphite styles for the Files app (Nautilus) in `files/.config/gtk-4.0/gtk.css`. A small library (`files/.local/src/gtk4-pointer/`) gives GTK 4 apps the hand cursor on clickable items.
