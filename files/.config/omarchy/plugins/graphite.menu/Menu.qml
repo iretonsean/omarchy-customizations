@@ -8,6 +8,8 @@ import qs.Ui
 import "../graphite-ui" as G
 import "MenuModel.js" as MenuModel
 import "Keybindings.js" as Bindings
+// Omarchy's app library, for the fallback below. Read only, never edited.
+import "file:///usr/share/omarchy/shell/services" as OmarchyServices
 
 Item {
   id: root
@@ -85,7 +87,17 @@ Item {
 
   // Shared application engine (entries, hidden filters, icons, launch,
   // removal), owned by the shell and also used by the standalone launcher.
-  readonly property var appLibrary: root.shell ? root.shell.appLibrary : null
+  // Graphite: after a shell restart, Omarchy can take back the plugin's app
+  // library and not give it again, which leaves the Apps menu empty. Then
+  // the menu uses its own copy of Omarchy's AppLibrary.
+  readonly property var appLibrary: root.shell && root.shell.appLibrary ? root.shell.appLibrary : localAppLibrary.item
+  onAppLibraryChanged: if (root.appLibrary && root.providersLoaded["apps"]) root.mergeAppRows()
+
+  Loader {
+    id: localAppLibrary
+    active: !(root.shell && root.shell.appLibrary)
+    sourceComponent: Component { OmarchyServices.AppLibrary { } }
+  }
   property bool deleteConfirmOpen: false
   property var deleteTarget: null
   onOpenedChanged: if (!opened) { deleteConfirmOpen = false; deleteTarget = null }
