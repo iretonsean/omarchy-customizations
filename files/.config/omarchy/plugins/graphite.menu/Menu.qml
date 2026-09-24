@@ -154,6 +154,7 @@ Item {
   function rowHeightForDetail(detail) {
     // Graphite: a search result shows its path at the right edge of one row,
     // so only select lists with a second line need the taller row.
+    if (root.keysLayout) return G.Tokens.rowData
     return root.dmenuActive && detail ? root.detailRowHeight : root.baseRowHeight
   }
 
@@ -163,6 +164,53 @@ Item {
   // name). Rows of one group are next to each other. A row draws its own
   // part of the group: the first row adds the name line and top padding,
   // the last row the bottom padding and the gap to the next group.
+
+  // --- Graphite keybindings ----------------------------------------------
+  //
+  // The Keybindings list (lines like "SUPER SHIFT + F    → File manager")
+  // shows one keycap per key, in groups, in two columns.
+  readonly property bool keysLayout: root.dmenuActive && root.dmenuColumnSeparator === " → "
+    && String(root.dmenuPrompt).toLowerCase().indexOf("keybinding") >= 0
+  readonly property var bindingGroupOrder: ["Launch", "Design", "Windows", "Workspaces", "Other"]
+
+  function bindingParts(label) {
+    var at = label.indexOf(" → ")
+    if (at < 0) return { keys: [], name: label.trim() }
+    return { keys: root.keyNames(label.slice(0, at).trim()), name: label.slice(at + 3).trim() }
+  }
+
+  // "SUPER SHIFT + RETURN" -> ["super", "⇧", "↵"]
+  function keyNames(combo) {
+    var words = {
+      "SUPER": "super", "SHIFT": "⇧", "CTRL": "ctrl", "CONTROL": "ctrl", "ALT": "alt",
+      "RETURN": "↵", "ENTER": "↵", "ESCAPE": "esc", "SPACE": "space", "TAB": "tab",
+      "BACKSPACE": "⌫", "DELETE": "del", "LEFT": "←", "RIGHT": "→", "UP": "↑", "DOWN": "↓",
+      "PRINT": "print", "HOME": "home", "END": "end", "COMMA": ",", "PERIOD": ".",
+      "SLASH": "/", "MINUS": "-", "EQUAL": "=", "GRAVE": "`", "BACKSLASH": "\\",
+      "BRACKETLEFT": "[", "BRACKETRIGHT": "]", "SEMICOLON": ";", "APOSTROPHE": "'"
+    }
+    var halves = combo.split(" + ")
+    var mods = halves.length > 1 ? halves[0].split(/\s+/) : []
+    var key = halves.length > 1 ? halves.slice(1).join(" + ") : halves[0]
+    var out = []
+    for (var i = 0; i < mods.length; i++) if (mods[i]) out.push(words[mods[i].toUpperCase()] || mods[i].toLowerCase())
+    var k = key.trim()
+    var upper = k.toUpperCase()
+    if (words[upper]) out.push(words[upper])
+    else if (/^XF86/i.test(k)) out.push(k.replace(/^XF86/i, "").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase())
+    else if (/^code:/i.test(k)) out.push(k.toLowerCase())
+    else out.push(k.toLowerCase())
+    return out
+  }
+
+  function bindingGroup(name) {
+    var n = name.toLowerCase()
+    if (/workspace/.test(n)) return "Workspaces"
+    if (/figma|paper|claude design|color picker|screenshot|screen ?record|ocr|capture|share/.test(n)) return "Design"
+    if (/window|full ?screen|full width|float|tiling|tile|focus|group|pseudo|split|resize|swap|move|close|pin|scratchpad|opacity|gaps|zoom|layout/.test(n)) return "Windows"
+    if (/menu|launcher|terminal|browser|file manager|claude|t3|app|editor|music|chat|messages|messenger|password|obsidian|calendar|mail|keybindings|btop|activity|docker|notes|web|figma|projects/.test(n)) return "Launch"
+    return "Other"
+  }
 
   // Default groups for the top level. A menu item can set its own with a
   // "group" field in omarchy-menu.jsonc.
@@ -207,9 +255,15 @@ Item {
     return G.Tokens.padGroup + (root.sectionAt(i) ? G.Tokens.rowGroupName : 0)
   }
 
+  function columnAt(i) {
+    if (i < 0 || i >= displayModel.count) return -1
+    return displayModel.get(i).column
+  }
+
   function groupBottomHeight(i) {
     if (!root.groupLast(i)) return G.Tokens.gapRow
-    return G.Tokens.padGroup + (i === displayModel.count - 1 ? 0 : G.Tokens.gapGroup)
+    var endOfColumn = i === displayModel.count - 1 || root.columnAt(i + 1) !== root.columnAt(i)
+    return G.Tokens.padGroup + (endOfColumn ? 0 : G.Tokens.gapGroup)
   }
 
   function rowBlockHeight(i) {
@@ -269,14 +323,15 @@ Item {
     var available = availableRowsHeight()
     if (root.dmenuMaxHeight > 0) available = Math.min(available, Style.space(root.dmenuMaxHeight))
 
-    var totals = []
-    var total = 0
+    var columns = [[], []]
+    var sums = [0, 0]
     for (var i = 0; i < displayModel.count; i++) {
-      total += root.rowBlockHeight(i)
-      totals.push(total)
+      var c = displayModel.get(i).column === 1 ? 1 : 0
+      sums[c] += root.rowBlockHeight(i)
+      columns[c].push(sums[c])
     }
 
-    return foldedListHeight(totals, available)
+    return foldedListHeight(columns[1].length > 0 && sums[1] > sums[0] ? columns[1] : columns[0], available)
   }
 
   function item(id) {
@@ -568,7 +623,9 @@ Item {
   }
 
   function displayRow(entry, detail, score, section) {
-    return MenuModel.displayRow(root.items, root.itemOrder, root.checkedResults, entry, detail, score, section)
+    var row = MenuModel.displayRow(root.items, root.itemOrder, root.checkedResults, entry, detail, score, section)
+    row.column = 0
+    return row
   }
 
   function rebuildDmenuDisplay() {
@@ -581,6 +638,7 @@ Item {
     }
 
     var query = root.filterText.trim().toLowerCase()
+    var built = []
     for (var i = 0; i < root.dmenuOptions.length; i++) {
       // An option is "<label>", "<glyph>\t<label>", or
       // "<glyph>\t<label>\t<subtext>". The glyph never comes back with the
@@ -592,7 +650,7 @@ Item {
       var detail = parts.join("\t")
       if (query && label.toLowerCase().indexOf(query) < 0
           && detail.toLowerCase().indexOf(query) < 0) continue
-      displayModel.append({
+      built.push({
         itemId: "dmenu." + i,
         kind: "dmenu",
         icon: icon,
@@ -607,9 +665,38 @@ Item {
         action: "",
         provider: "",
         score: i,
-        section: ""
+        section: root.keysLayout ? root.bindingGroup(root.bindingParts(label).name) : "",
+        column: 0
       })
     }
+
+    if (root.keysLayout) {
+      // Groups in a fixed order, split across two columns of about equal
+      // height: the left column takes groups until it holds half the rows.
+      var ordered = []
+      var counts = {}
+      for (var g = 0; g < root.bindingGroupOrder.length; g++) {
+        var name = root.bindingGroupOrder[g]
+        counts[name] = 0
+        for (var r = 0; r < built.length; r++) {
+          if (built[r].section === name) { ordered.push(built[r]); counts[name] += 1 }
+        }
+      }
+      var half = ordered.length / 2
+      var left = 0
+      var column = 0
+      var current = ""
+      for (var o = 0; o < ordered.length; o++) {
+        if (ordered[o].section !== current) {
+          current = ordered[o].section
+          if (column === 0 && left > 0 && left + counts[current] / 2 > half) column = 1
+        }
+        ordered[o].column = column
+        if (column === 0) left += 1
+      }
+      built = ordered
+    }
+    for (var b = 0; b < built.length; b++) displayModel.append(built[b])
 
     layoutSerial += 1
 
@@ -708,20 +795,21 @@ Item {
   // hidden row peeking past the cursor in the direction of travel.
   function revealCursor() {
     if (displayModel.count === 0) return
-    resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+    var view = root.keysLayout && root.columnAt(root.selectedIndex) === 1 ? rightList : resultList
+    view.positionViewAtIndex(root.selectedIndex, ListView.Contain)
 
-    var item = resultList.itemAtIndex(root.selectedIndex)
+    var item = view.itemAtIndex(root.selectedIndex)
     if (!item) return
 
     var reach = root.rowPeek + root.rowSpacing
     if (root.selectedIndex < displayModel.count - 1) {
-      var maxY = Math.max(resultList.originY, resultList.originY + resultList.contentHeight - resultList.height)
-      var overhang = item.y + item.height + reach - (resultList.contentY + resultList.height)
-      if (overhang > 0) resultList.contentY = Math.min(resultList.contentY + overhang, maxY)
+      var maxY = Math.max(view.originY, view.originY + view.contentHeight - view.height)
+      var overhang = item.y + item.height + reach - (view.contentY + view.height)
+      if (overhang > 0) view.contentY = Math.min(view.contentY + overhang, maxY)
     }
     if (root.selectedIndex > 0) {
-      var underhang = resultList.contentY - (item.y - reach)
-      if (underhang > 0) resultList.contentY = Math.max(resultList.contentY - underhang, resultList.originY)
+      var underhang = view.contentY - (item.y - reach)
+      if (underhang > 0) view.contentY = Math.max(view.contentY - underhang, view.originY)
     }
   }
 
@@ -1310,9 +1398,28 @@ Item {
           width: parent.width
           height: root.visibleRowsHeight
 
+          // Keybindings: a second column with the same rows; each column shows
+          // only its own rows (MenuRow.viewColumn).
+          ListView {
+            id: rightList
+            visible: root.keysLayout
+            x: parent.width / 2 + G.Tokens.gapGroup / 2
+            width: parent.width / 2 - G.Tokens.gapGroup / 2
+            height: parent.height
+            model: displayModel
+            clip: true
+            layer.enabled: true
+            layer.effect: G.RoundedClip {}
+            spacing: 0
+            boundsBehavior: Flickable.StopAtBounds
+            delegate: MenuRow { viewColumn: 1 }
+          }
+
           ListView {
             id: resultList
-            anchors.fill: parent
+            x: 0
+            width: root.keysLayout ? parent.width / 2 - G.Tokens.gapGroup / 2 : parent.width
+            height: parent.height
             model: displayModel
             clip: true
             // Rounded clip: a group cut by the list edge keeps round corners.
@@ -1325,211 +1432,8 @@ Item {
             // the group name on the first row), then the row itself: lift for
             // the cursor, a 15px icon in text-3 (accent under the cursor), the
             // label in SF Pro, and on search results the path at the right.
-            delegate: Item {
-              id: row
-              required property int index
-              required property string itemId
-              required property string kind
-              required property string icon
-              required property string iconFont
-              required property string appIcon
-              required property string appId
-              required property string label
-              required property string target
-              required property string detail
-              required property string path
-              required property string action
-              required property int childCount
-              required property string section
+            delegate: MenuRow { viewColumn: 0 }
 
-              readonly property bool hasCursor: root.cursorActive && row.index === root.selectedIndex
-              readonly property bool isApp: row.kind === "app"
-              readonly property bool hasIcon: row.icon.length > 0 || row.isApp
-              readonly property var columns: row.kind === "dmenu" ? root.dmenuColumns(row.label) : null
-              // Recomputed when the rows change (layoutSerial).
-              readonly property bool first: root.layoutSerial >= 0 && root.groupFirst(row.index)
-              readonly property bool last: root.layoutSerial >= 0 && root.groupLast(row.index)
-              readonly property int topPart: root.layoutSerial >= 0 ? root.groupTopHeight(row.index) : 0
-              readonly property int bottomPart: root.layoutSerial >= 0 ? root.groupBottomHeight(row.index) : 0
-              readonly property int rowHeight: root.rowHeightForDetail(row.detail)
-              readonly property bool showPath: !!root.filterText && row.kind !== "dmenu" && row.detail.length > 0
-              readonly property bool twoLines: row.kind === "dmenu" && row.detail.length > 0
-
-              width: ListView.view.width
-              height: row.topPart + row.rowHeight + row.bottomPart
-
-              // Group background. Only the group's first and last rows round
-              // their corners; the rows between extend past their edges.
-              Item {
-                x: 0
-                y: 0
-                width: parent.width
-                height: row.last ? parent.height - (row.bottomPart - G.Tokens.padGroup) : parent.height
-                clip: true
-
-                Rectangle {
-                  width: parent.width
-                  y: row.first ? 0 : -G.Tokens.radiusGroup
-                  height: parent.height + (row.first ? 0 : G.Tokens.radiusGroup) + (row.last ? 0 : G.Tokens.radiusGroup)
-                  radius: G.Tokens.radiusGroup
-                  color: G.Tokens.surface2
-                }
-              }
-
-              // Group name and count on the group's first row.
-              Item {
-                visible: row.first && row.section !== ""
-                x: G.Tokens.padGroup
-                y: G.Tokens.padGroup
-                width: parent.width - G.Tokens.padGroup * 2
-                height: G.Tokens.rowGroupName
-
-                Text {
-                  anchors.left: parent.left
-                  anchors.leftMargin: 8
-                  anchors.verticalCenter: parent.verticalCenter
-                  text: row.section
-                  textFormat: Text.PlainText
-                  font.family: G.Tokens.labelFont
-                  font.pixelSize: G.Tokens.sizeGroupName
-                  font.weight: Font.DemiBold
-                  color: G.Tokens.labelTint
-                }
-              }
-
-              Item {
-                id: rowArea
-                x: G.Tokens.padGroup
-                y: row.topPart
-                width: parent.width - G.Tokens.padGroup * 2
-                height: row.rowHeight
-
-                G.CursorSurface {
-                  anchors.fill: parent
-                  hasCursor: row.hasCursor
-                }
-
-                Text {
-                  id: iconText
-                  textFormat: Text.PlainText
-                  visible: row.hasIcon && !row.isApp
-                  text: row.icon
-                  color: row.hasCursor ? G.Tokens.accent : G.Tokens.text3
-                  font.family: row.iconFont.length > 0 ? row.iconFont : G.Tokens.valueFont
-                  font.pixelSize: 15
-                  width: 18
-                  horizontalAlignment: Text.AlignHCenter
-                  anchors.left: parent.left
-                  anchors.leftMargin: 8
-                  y: contentColumn.y + labelLine.y + (labelLine.height - height) / 2
-                }
-
-                Image {
-                  id: appIconImage
-                  visible: row.isApp
-                  width: 18
-                  height: 18
-                  fillMode: Image.PreserveAspectFit
-                  // Decode at physical pixels, so icons stay sharp on HiDPI.
-                  sourceSize.width: width * Screen.devicePixelRatio
-                  sourceSize.height: height * Screen.devicePixelRatio
-                  source: row.isApp && root.appLibrary ? root.appLibrary.iconSource(row.appIcon) : ""
-                  asynchronous: true
-                  anchors.left: parent.left
-                  anchors.leftMargin: 8
-                  y: contentColumn.y + labelLine.y + (labelLine.height - height) / 2
-                }
-
-                Column {
-                  id: contentColumn
-                  anchors.left: row.hasIcon ? iconText.right : parent.left
-                  anchors.leftMargin: row.hasIcon ? 10 : 8
-                  anchors.right: pathText.visible ? pathText.left : parent.right
-                  anchors.rightMargin: 8
-                  anchors.verticalCenter: parent.verticalCenter
-                  spacing: 1
-
-                  Item {
-                    id: labelLine
-                    width: parent.width
-                    height: labelText.height
-
-                    Text {
-                      id: labelText
-                      textFormat: Text.PlainText
-                      // A first column wider than the row would push the second
-                      // one out of sight, so it gives way at 60% and elides.
-                      width: row.columns ? Math.min(root.dmenuColumnWidth, parent.width * 0.6) : parent.width
-                      text: row.columns ? row.columns.lead : row.label
-                      color: row.hasCursor ? G.Tokens.text1 : G.Tokens.text2
-                      font.family: G.Tokens.labelFont
-                      font.pixelSize: G.Tokens.sizeNavRow
-                      elide: Text.ElideRight
-                    }
-
-                    Text {
-                      visible: !!row.columns
-                      textFormat: Text.PlainText
-                      anchors.left: labelText.right
-                      anchors.leftMargin: 12
-                      anchors.right: parent.right
-                      text: row.columns ? row.columns.rest : ""
-                      color: row.hasCursor ? G.Tokens.text1 : G.Tokens.text2
-                      font.family: G.Tokens.labelFont
-                      font.pixelSize: G.Tokens.sizeNavRow
-                      elide: Text.ElideRight
-                    }
-                  }
-
-                  Text {
-                    textFormat: Text.PlainText
-                    width: parent.width
-                    text: row.detail
-                    visible: row.twoLines
-                    color: G.Tokens.text3
-                    font.family: G.Tokens.labelFont
-                    font.pixelSize: 12
-                    elide: Text.ElideRight
-                  }
-                }
-
-                // Search results: where the row lives, at the right edge.
-                Text {
-                  id: pathText
-                  visible: row.showPath
-                  textFormat: Text.PlainText
-                  anchors.right: parent.right
-                  anchors.rightMargin: 8
-                  anchors.verticalCenter: parent.verticalCenter
-                  width: Math.min(implicitWidth, rowArea.width * 0.45)
-                  horizontalAlignment: Text.AlignRight
-                  elide: Text.ElideLeft
-                  text: row.detail
-                  color: G.Tokens.text3
-                  font.family: G.Tokens.labelFont
-                  font.pixelSize: 12
-                }
-
-                MouseArea {
-                  id: mouseArea
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onEntered: root.selectFromPointer(row.index, row, {
-                    x: mouseArea.mouseX,
-                    y: mouseArea.mouseY
-                  })
-                  onPositionChanged: function(mouse) {
-                    root.selectFromPointer(row.index, row, mouse)
-                  }
-                  onClicked: {
-                    root.cursorActive = true
-                    root.selectedIndex = row.index
-                    root.activateIndex(row.index, true)
-                  }
-                }
-              }
-            }
           }
 
           // Empty list: one quiet line.
@@ -1544,6 +1448,238 @@ Item {
         Item {
           width: parent.width
           height: 0
+        }
+      }
+    }
+  }
+
+  // One menu row (see the ListView delegates). In the keybindings layout a
+  // row shows only in its own column; in the other column it takes no space.
+  component MenuRow: Item {
+    id: row
+    required property int index
+    required property string itemId
+    required property string kind
+    required property string icon
+    required property string iconFont
+    required property string appIcon
+    required property string appId
+    required property string label
+    required property string target
+    required property string detail
+    required property string path
+    required property string action
+    required property int childCount
+    required property string section
+    required property int column
+    property int viewColumn: 0
+
+    readonly property bool hasCursor: root.cursorActive && row.index === root.selectedIndex
+    readonly property bool isApp: row.kind === "app"
+    readonly property bool hasIcon: row.icon.length > 0 || row.isApp
+    // Keybindings: the keys and the name of the binding.
+    readonly property var binding: root.keysLayout ? root.bindingParts(row.label) : null
+    readonly property var columns: row.kind === "dmenu" && !row.binding ? root.dmenuColumns(row.label) : null
+    readonly property bool mine: !root.keysLayout || row.column === row.viewColumn
+    // Recomputed when the rows change (layoutSerial).
+    readonly property bool first: root.layoutSerial >= 0 && root.groupFirst(row.index)
+    readonly property bool last: root.layoutSerial >= 0 && root.groupLast(row.index)
+    readonly property int topPart: root.layoutSerial >= 0 ? root.groupTopHeight(row.index) : 0
+    readonly property int bottomPart: root.layoutSerial >= 0 ? root.groupBottomHeight(row.index) : 0
+    readonly property int rowHeight: root.rowHeightForDetail(row.detail)
+    readonly property bool showPath: !!root.filterText && row.kind !== "dmenu" && row.detail.length > 0
+    readonly property bool twoLines: row.kind === "dmenu" && row.detail.length > 0
+
+    width: ListView.view.width
+    visible: row.mine
+    height: row.mine ? row.topPart + row.rowHeight + row.bottomPart : 0
+
+    // Group background. Only the group's first and last rows round
+    // their corners; the rows between extend past their edges.
+    Item {
+      x: 0
+      y: 0
+      width: parent.width
+      height: row.last ? parent.height - (row.bottomPart - G.Tokens.padGroup) : parent.height
+      clip: true
+
+      Rectangle {
+        width: parent.width
+        y: row.first ? 0 : -G.Tokens.radiusGroup
+        height: parent.height + (row.first ? 0 : G.Tokens.radiusGroup) + (row.last ? 0 : G.Tokens.radiusGroup)
+        radius: G.Tokens.radiusGroup
+        color: G.Tokens.surface2
+      }
+    }
+
+    // Group name and count on the group's first row.
+    Item {
+      visible: row.first && row.section !== ""
+      x: G.Tokens.padGroup
+      y: G.Tokens.padGroup
+      width: parent.width - G.Tokens.padGroup * 2
+      height: G.Tokens.rowGroupName
+
+      Text {
+        anchors.left: parent.left
+        anchors.leftMargin: 8
+        anchors.verticalCenter: parent.verticalCenter
+        text: row.section
+        textFormat: Text.PlainText
+        font.family: G.Tokens.labelFont
+        font.pixelSize: G.Tokens.sizeGroupName
+        font.weight: Font.DemiBold
+        color: G.Tokens.labelTint
+      }
+    }
+
+    Item {
+      id: rowArea
+      x: G.Tokens.padGroup
+      y: row.topPart
+      width: parent.width - G.Tokens.padGroup * 2
+      height: row.rowHeight
+
+      G.CursorSurface {
+        anchors.fill: parent
+        hasCursor: row.hasCursor
+      }
+
+      Text {
+        id: iconText
+        textFormat: Text.PlainText
+        visible: row.hasIcon && !row.isApp
+        text: row.icon
+        color: row.hasCursor ? G.Tokens.accent : G.Tokens.text3
+        font.family: row.iconFont.length > 0 ? row.iconFont : G.Tokens.valueFont
+        font.pixelSize: 15
+        width: 18
+        horizontalAlignment: Text.AlignHCenter
+        anchors.left: parent.left
+        anchors.leftMargin: 8
+        y: contentColumn.y + labelLine.y + (labelLine.height - height) / 2
+      }
+
+      Image {
+        id: appIconImage
+        visible: row.isApp
+        width: 18
+        height: 18
+        fillMode: Image.PreserveAspectFit
+        // Decode at physical pixels, so icons stay sharp on HiDPI.
+        sourceSize.width: width * Screen.devicePixelRatio
+        sourceSize.height: height * Screen.devicePixelRatio
+        source: row.isApp && root.appLibrary ? root.appLibrary.iconSource(row.appIcon) : ""
+        asynchronous: true
+        anchors.left: parent.left
+        anchors.leftMargin: 8
+        y: contentColumn.y + labelLine.y + (labelLine.height - height) / 2
+      }
+
+      Column {
+        id: contentColumn
+        anchors.left: row.hasIcon ? iconText.right : parent.left
+        anchors.leftMargin: row.hasIcon ? 10 : 8
+        anchors.right: keycaps.visible ? keycaps.left : (pathText.visible ? pathText.left : parent.right)
+        anchors.rightMargin: 8
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 1
+
+        Item {
+          id: labelLine
+          width: parent.width
+          height: labelText.height
+
+          Text {
+            id: labelText
+            textFormat: Text.PlainText
+            // A first column wider than the row would push the second
+            // one out of sight, so it gives way at 60% and elides.
+            width: row.columns ? Math.min(root.dmenuColumnWidth, parent.width * 0.6) : parent.width
+            text: row.binding ? row.binding.name : (row.columns ? row.columns.lead : row.label)
+            color: row.hasCursor ? G.Tokens.text1 : G.Tokens.text2
+            font.family: G.Tokens.labelFont
+            font.pixelSize: row.binding ? G.Tokens.sizeDataRow : G.Tokens.sizeNavRow
+            elide: Text.ElideRight
+          }
+
+          Text {
+            visible: !!row.columns
+            textFormat: Text.PlainText
+            anchors.left: labelText.right
+            anchors.leftMargin: 12
+            anchors.right: parent.right
+            text: row.columns ? row.columns.rest : ""
+            color: row.hasCursor ? G.Tokens.text1 : G.Tokens.text2
+            font.family: G.Tokens.labelFont
+            font.pixelSize: G.Tokens.sizeNavRow
+            elide: Text.ElideRight
+          }
+        }
+
+        Text {
+          textFormat: Text.PlainText
+          width: parent.width
+          text: row.detail
+          visible: row.twoLines
+          color: G.Tokens.text3
+          font.family: G.Tokens.labelFont
+          font.pixelSize: 12
+          elide: Text.ElideRight
+        }
+      }
+
+      // Keybindings: one keycap per key at the right edge.
+      Row {
+        id: keycaps
+        visible: !!row.binding
+        anchors.right: parent.right
+        anchors.rightMargin: 6
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 4
+        Repeater {
+          model: row.binding ? row.binding.keys : []
+          G.Keycap {
+            required property string modelData
+            text: modelData
+            textColor: row.hasCursor ? G.Tokens.text1 : G.Tokens.text2
+          }
+        }
+      }
+
+      // Search results: where the row lives, at the right edge.
+      Text {
+        id: pathText
+        visible: row.showPath
+        textFormat: Text.PlainText
+        anchors.right: parent.right
+        anchors.rightMargin: 8
+        anchors.verticalCenter: parent.verticalCenter
+        width: Math.min(implicitWidth, rowArea.width * 0.45)
+        horizontalAlignment: Text.AlignRight
+        elide: Text.ElideLeft
+        text: row.detail
+        color: G.Tokens.text3
+        font.family: G.Tokens.labelFont
+        font.pixelSize: 12
+      }
+
+      MouseArea {
+        id: mouseArea
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onEntered: root.selectFromPointer(row.index, row, {
+          x: mouseArea.mouseX,
+          y: mouseArea.mouseY
+        })
+        onPositionChanged: function(mouse) {
+          root.selectFromPointer(row.index, row, mouse)
+        }
+        onClicked: {
+          root.cursorActive = true
+          root.selectedIndex = row.index
+          root.activateIndex(row.index, true)
         }
       }
     }
