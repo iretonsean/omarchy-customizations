@@ -12,6 +12,7 @@ For each project it writes:
 Run it again after you change projects.json. Usage: projects-apply [path/to/projects.json]
 """
 
+import html
 import json
 import os
 import re
@@ -127,6 +128,14 @@ def desktop_entry(name, url, icon, wm_class, hidden):
     return "\n".join(lines) + "\n"
 
 
+def guide_row(icon, label, value):
+    """One data row for the workspace guide, in the Graphite row component."""
+    return (
+        f'    <div class="row data"><svg class="ic"><use href="#i-{icon}"/></svg>'
+        f'<span class="label">{html.escape(label)}</span><span class="value">{html.escape(value)}</span></div>\n'
+    )
+
+
 def main():
     config_path = sys.argv[1] if len(sys.argv) > 1 else CONFIG
     if os.path.exists(config_path):
@@ -168,7 +177,7 @@ def main():
             rules.append((host_pattern(url), workspace))
             if site.get("dock", True):
                 pins.append(wm_class)
-            site_names.append(f"{site.get('label', site_name)} ({urlparse(url).netloc})")
+            site_names.append((site.get("label", site_name), urlparse(url).netloc))
 
         sessions = project.get("sessions") or [{"label": "Agent session", "folder": project["folder"]}]
         for index, session in enumerate(sessions):
@@ -193,10 +202,13 @@ def main():
             f"Project: {name}",
         )
 
+        rows = [guide_row("folder", "Folder", project["folder"])]
+        rows += [guide_row("globe", label, host) for label, host in site_names]
         guide_items.append(
-            f"    <li><b>{name}</b> (workspace {workspace}): <code>{project['folder']}</code>"
-            + (f". Sites: {', '.join(site_names)}" if site_names else "")
-            + ".</li>\n"
+            '  <div class="group">\n'
+            f'    <div class="group-name">{html.escape(name)}<span class="count">workspace {workspace}</span></div>\n'
+            + "".join(rows)
+            + "  </div>\n"
         )
 
     # Remove launchers and icons from projects that are gone.
@@ -244,7 +256,7 @@ def main():
     if os.path.exists(GUIDE):
         with open(GUIDE) as file:
             guide = file.read()
-        body = "  <ul>\n" + "".join(guide_items) + "  </ul>\n" if guide_items else "  <p>No projects yet.</p>\n"
+        body = "".join(guide_items) if guide_items else '  <p class="note">No projects yet.</p>\n'
         guide = replace_region(guide, "projects", body, lambda text: f"<!-- {text} -->")
         with open(GUIDE, "w") as file:
             file.write(guide)

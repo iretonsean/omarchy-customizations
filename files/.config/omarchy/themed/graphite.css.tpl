@@ -3,6 +3,7 @@
    Colors come from the theme's colors.toml. A theme without a token gets the
    nearest standard key. */
 :root {
+  --token-source: theme;
   --surface-0: {{ shell_gradient surface_0 darker_background }};
   --surface-1: {{ shell_gradient surface_1 background }};
   --surface-2: {{ shell_gradient surface_2 lighter_background }};
