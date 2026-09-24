@@ -213,7 +213,7 @@ Until Omarchy includes the fix, Omarchy's own menu has the "before" behavior.
 | `apple_cursor` | AUR | Pre-Tahoe macOS cursor theme |
 | `t3code-bin` | Omarchy | T3 Code, a window for coding agent sessions, installed with `omarchy install ai t3 code` |
 
-The SF fonts are licensed for use on Apple hardware only.
+The SF fonts are licensed for use on Apple hardware only. Alternatives for other computers are planned.
 
 ## Not in this repo
 
@@ -221,3 +221,9 @@ The SF fonts are licensed for use on Apple hardware only.
 - **A coding agent:** install and choose your own.
 - **Logins:** T3 Code, your agent and the web apps each need you to sign in.
 - **Omarchy's own files:** only files that differ from Omarchy's defaults are here.
+
+## License
+
+MIT, see [LICENSE](LICENSE). The SF fonts, the cursor theme and the app icons are not part of this license; they keep their own terms.
+
+Project page: [seanireton.com/graphite](https://seanireton.com/graphite)
