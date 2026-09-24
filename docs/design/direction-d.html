@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Graphite direction D</title>
+<!--
+  Visual reference for docs/theme-direction.md (direction D).
+  A static mockup at 1440 x 900. The values here match the tokens in the brief.
+  SF Pro and SF Mono render only where they are installed.
+-->
+<style>
+body{margin:0;font-family:"SF Pro Text",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:#e5e5e7;background:#0e0e10}
+.wall{background:#0e0e10 url(../../files/.config/omarchy/themes/graphite/backgrounds/1-graphite-glow.jpg) center/cover no-repeat}
+.mono{font-family:"SF Mono",ui-monospace,Menlo,monospace}
+.pnl{position:absolute;background:#18181a;border-radius:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),0 20px 48px rgba(0,0,0,0.55);padding:16px;box-sizing:border-box}
+.ttl{font-size:15px;font-weight:600;color:#f5f5f7;margin:0 4px 12px;display:flex;justify-content:space-between;align-items:baseline}
+.ttl .mono{font-size:11px;font-weight:400;color:#98989d}
+.grp{background:#222224;border-radius:8px;padding:4px;display:flex;flex-direction:column;gap:2px}
+.grp + .grp{margin-top:10px}
+.gh{display:flex;justify-content:space-between;align-items:center;height:26px;padding:0 8px;font-size:11px;font-weight:600;color:#7d8aa3}
+.gh .mono{font-weight:400;color:#98989d}
+.row{display:flex;align-items:center;gap:10px;height:36px;padding:0 8px;border-radius:6px;font-size:14px}
+.cmp{height:30px;font-size:13px}
+.sel{background:#303033;color:#f5f5f7;box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),0 2px 8px rgba(0,0,0,0.4)}
+.ic{display:flex;color:#98989d;flex-shrink:0}
+.sel .ic{color:#6cb4ff}
+.val{margin-left:auto;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12px;color:#98989d}
+.fld{margin-left:auto;display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 7px;background:#18181a;border-radius:5px;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12px;color:#e5e5e7}
+.fld + .fld{margin-left:6px}
+.unit{color:#98989d}
+.k{display:inline-flex;align-items:center;height:20px;padding:0 6px;border:1px solid rgba(255,255,255,0.14);border-bottom-width:2px;border-radius:5px;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px;color:#e5e5e7}
+.ks{margin-left:auto;display:flex;gap:4px}
+.tg{margin-left:auto;width:36px;height:18px;border-radius:5px;position:relative;box-sizing:border-box}
+.tg.on{background:#0a84ff;box-shadow:inset 0 1px 0 rgba(255,255,255,0.18)}
+.tg.off{background:#2c2c2e;box-shadow:inset 0 1px 2px rgba(0,0,0,0.45)}
+.tg span{position:absolute;top:2px;width:16px;height:14px;border-radius:3px;box-shadow:0 1px 2px rgba(0,0,0,0.4)}
+.tg.on span{right:2px;background:#ffffff}
+.tg.off span{left:2px;background:#c7c7cc}
+.day{height:30px;display:flex;align-items:center;justify-content:center;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12px;border-radius:6px}
+svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+</style>
+</head>
+<body>
+<div class="wall" style="width: 1440px; height: 900px; position: relative; overflow: hidden;">
+
+  <div style="position: absolute; left: 0; top: 0; width: 1440px; height: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; box-sizing: border-box; background: rgba(14,14,16,0.85); font-size: 12px;">
+    <div class="mono" style="display: flex; gap: 12px; color: #98989d;"><span style="color: #f5f5f7;">1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></div>
+    <div class="mono" style="color: #f5f5f7; display: flex; gap: 8px;">14:21<span style="color: #98989d;">Wed 23</span></div>
+    <div class="mono" style="display: flex; gap: 14px; color: #98989d;"><span>wifi</span><span>bt</span><span>vol</span><span>bat</span></div>
+  </div>
+
+  <div class="pnl" style="left: 56px; top: 64px; width: 320px;">
+    <div class="ttl">Omarchy<span class="mono">super space</span></div>
+    <div class="grp">
+      <div class="gh">Go to</div>
+      <div class="row"><span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></span>Apps<span class="val">42</span></div>
+      <div class="row sel"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></span>Projects<span class="ks"><span class="k">super</span><span class="k">d</span></span></div>
+      <div class="row"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"></path><path d="M4 19V5"></path></svg></span>Learn</div>
+    </div>
+    <div class="grp">
+      <div class="gh">Configure<span class="mono">3</span></div>
+      <div class="row"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><path d="M12 4a8 8 0 0 0 0 16z"></path></svg></span>Style<span class="val">Graphite</span></div>
+      <div class="row"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path></svg></span>Setup</div>
+      <div class="row"><span class="ic"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"></path></svg></span>Update<span class="val" style="color: #ffcc66;">3 ready</span></div>
+    </div>
+    <div class="grp">
+      <div class="gh">System</div>
+      <div class="row"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0"></path></svg></span>Lock, restart, shut down<span class="ks"><span class="k">esc</span></span></div>
+    </div>
+  </div>
+
+  <div class="pnl" style="left: 408px; top: 64px; width: 600px;">
+    <div class="ttl">Keybindings<span class="mono">48 bindings</span></div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+      <div>
+        <div class="grp">
+      <div class="gh">Launch<span class="mono">4</span></div>
+          <div class="row cmp">Terminal<span class="ks"><span class="k">super</span><span class="k">↵</span></span></div>
+          <div class="row cmp">Menu<span class="ks"><span class="k">super</span><span class="k">space</span></span></div>
+          <div class="row cmp sel">Projects<span class="ks"><span class="k">super</span><span class="k">d</span></span></div>
+          <div class="row cmp">Claude<span class="ks"><span class="k">super</span><span class="k">⇧</span><span class="k">a</span></span></div>
+        </div>
+        <div class="grp">
+      <div class="gh">Windows<span class="mono">3</span></div>
+          <div class="row cmp">Close<span class="ks"><span class="k">super</span><span class="k">w</span></span></div>
+          <div class="row cmp">Full screen<span class="ks"><span class="k">super</span><span class="k">f</span></span></div>
+          <div class="row cmp">Paste<span class="ks"><span class="k">super</span><span class="k">v</span></span></div>
+        </div>
+      </div>
+      <div>
+        <div class="grp">
+      <div class="gh">Design<span class="mono">3</span></div>
+          <div class="row cmp">Figma<span class="ks"><span class="k">super</span><span class="k">⇧</span><span class="k">i</span></span></div>
+          <div class="row cmp">Paper<span class="ks"><span class="k">super</span><span class="k">⇧</span><span class="k">alt</span><span class="k">i</span></span></div>
+          <div class="row cmp">Claude Design<span class="ks"><span class="k">⇧</span><span class="k">ctrl</span><span class="k">i</span></span></div>
+        </div>
+        <div class="grp">
+      <div class="gh">Workspaces<span class="mono">2</span></div>
+          <div class="row cmp">Switch<span class="ks"><span class="k">super</span><span class="k">1–6</span></span></div>
+          <div class="row cmp">Move window<span class="ks"><span class="k">super</span><span class="k">⇧</span><span class="k">1–6</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pnl" style="left: 1040px; top: 64px; width: 344px;">
+    <div class="ttl">Appearance<span class="mono">graphite</span></div>
+    <div class="grp">
+      <div class="gh">Style</div>
+      <div class="row cmp">Theme<span class="val">Graphite</span></div>
+      <div class="row cmp">Menu font<span class="val">SF Pro</span></div>
+    </div>
+    <div class="grp">
+      <div class="gh">Windows</div>
+      <div class="row cmp">Gaps<span class="fld">4 <span class="unit">in</span></span><span class="fld">8 <span class="unit">out</span></span></div>
+      <div class="row cmp">Radius<span class="fld">12 <span class="unit">px</span></span></div>
+      <div class="row cmp">Border<span class="fld">1 <span class="unit">px</span></span></div>
+      <div class="row cmp">Shadow<span class="tg on"><span></span></span></div>
+      <div class="row cmp">Blur<span class="tg off"><span></span></span></div>
+    </div>
+    <div class="grp">
+      <div class="gh">Accent<span class="mono">0a84ff</span></div>
+      <div style="display: flex; gap: 8px; align-items: center; padding: 4px 8px 8px;">
+        <span style="width: 20px; height: 20px; border-radius: 6px; background: #0a84ff; box-shadow: 0 0 0 2px #222224, 0 0 0 3px #f5f5f7;"></span>
+        <span style="width: 20px; height: 20px; border-radius: 6px; background: #64d2ff;"></span>
+        <span style="width: 20px; height: 20px; border-radius: 6px; background: #32d74b;"></span>
+        <span style="width: 20px; height: 20px; border-radius: 6px; background: #ff9f0a;"></span>
+        <span style="width: 20px; height: 20px; border-radius: 6px; background: #bf5af2;"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pnl" style="left: 1040px; top: 552px; width: 344px; padding: 12px;">
+    <div style="display: flex; gap: 12px; align-items: flex-start;">
+      <span class="ic" style="color: #6cb4ff; padding-top: 2px;"><svg viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"></path></svg></span>
+      <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1;">
+        <div style="display: flex; justify-content: space-between;"><span style="font-size: 14px; font-weight: 600;">Agent session finished</span><span class="mono" style="font-size: 11px; color: #98989d;">now</span></div>
+        <div style="font-size: 13px; color: #98989d;">Portfolio site · <span class="mono" style="font-size: 12px; color: #7fd48f;">4 files changed</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pnl" style="left: 56px; top: 560px; width: 320px; padding: 14px;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 0 4px 8px;">
+      <span style="font-size: 14px; font-weight: 600;">September</span>
+      <span class="mono" style="font-size: 11px; color: #98989d;">2026</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px;">
+      <div class="day" style="color: #7d8aa3; font-size: 11px;">M</div><div class="day" style="color: #7d8aa3; font-size: 11px;">T</div><div class="day" style="color: #7d8aa3; font-size: 11px;">W</div><div class="day" style="color: #7d8aa3; font-size: 11px;">T</div><div class="day" style="color: #7d8aa3; font-size: 11px;">F</div><div class="day" style="color: #7d8aa3; font-size: 11px;">S</div><div class="day" style="color: #7d8aa3; font-size: 11px;">S</div>
+      <div class="day" style="color: #636366;">31</div><div class="day">1</div><div class="day">2</div><div class="day">3</div><div class="day">4</div><div class="day" style="color: #98989d;">5</div><div class="day" style="color: #98989d;">6</div>
+      <div class="day">7</div><div class="day">8</div><div class="day">9</div><div class="day">10</div><div class="day">11</div><div class="day" style="color: #98989d;">12</div><div class="day" style="color: #98989d;">13</div>
+      <div class="day">14</div><div class="day">15</div><div class="day">16</div><div class="day">17</div><div class="day">18</div><div class="day" style="color: #98989d;">19</div><div class="day" style="color: #98989d;">20</div>
+      <div class="day">21</div><div class="day">22</div><div class="day" style="background: #6cb4ff; color: #0e0e10; font-weight: 600;">23</div><div class="day">24</div><div class="day">25</div><div class="day" style="color: #98989d;">26</div><div class="day" style="color: #98989d;">27</div>
+      <div class="day">28</div><div class="day">29</div><div class="day">30</div><div class="day" style="color: #636366;">1</div><div class="day" style="color: #636366;">2</div><div class="day" style="color: #636366;">3</div><div class="day" style="color: #636366;">4</div>
+    </div>
+  </div>
+
+  <div class="pnl" style="left: 588px; top: 772px; width: 264px; height: 48px; padding: 0 16px; border-radius: 14px; display: flex; align-items: center; gap: 12px;">
+    <svg viewBox="0 0 24 24" style="color: #e5e5e7;"><path d="M4 10v4h4l5 4V6L8 10z"></path><path d="M16 9a4 4 0 0 1 0 6"></path></svg>
+    <div style="flex-grow: 1; height: 4px; border-radius: 2px; background: #2c2c2e; position: relative;"><div style="position: absolute; left: 0; top: 0; bottom: 0; width: 62%; border-radius: 2px; background: #0a84ff;"></div></div>
+    <span class="fld" style="margin-left: 0; background: #222224;">62 <span class="unit">%</span></span>
+  </div>
+
+</div>
+</body>
+</html>

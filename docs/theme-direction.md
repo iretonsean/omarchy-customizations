@@ -4,7 +4,9 @@ A design brief for the next work on the Graphite theme. The colors and fonts sta
 
 Reference: a UI concept by [@iamdothash](https://x.com/iamdothash). Graphite takes its rules (one set of parts, the accent only for state, generous space) and not its forms (centered cards, pill controls, monospace for all text, lavender).
 
-Design canvas with the directions that led here: A Inspector, B Grouped, C Anchored and D Combined. Direction D is the one to build.
+Visual reference: [`docs/design/direction-d.html`](design/direction-d.html). Open it in a browser at 1440 × 900. It is a static mockup of direction D: the menu, keybindings, appearance settings, a notification, the calendar and the volume OSD. Its values match the tokens below. If the mockup and this brief do not agree, the brief is correct.
+
+Direction D came from four explorations: A Inspector, B Grouped, C Anchored and D Combined. D is the one to build.
 
 ## Summary
 
