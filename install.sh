@@ -62,8 +62,9 @@ echo "==> Theme, fonts and cursor"
 omarchy theme set graphite
 # The dock is a shell plugin (files/.config/omarchy/plugins/graphite.dock).
 omarchy plugin enable graphite.dock >/dev/null
-# Graphite versions of the menu and the bar panels replace the built-in ones.
-for panel in menu agents bluetooth network audio monitor speedtest disk-speedtest wifiqr; do
+# Graphite versions of the menu, the bar panels and the notifications replace
+# the built-in ones.
+for panel in menu agents bluetooth network audio monitor speedtest disk-speedtest wifiqr notifications; do
   omarchy plugin enable "graphite.$panel" >/dev/null
 done
 omarchy font set "SFMono Nerd Font Mono"
