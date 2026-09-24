@@ -127,9 +127,28 @@ PanelWindow {
     var actual = (root.barPos === "top" || root.barPos === "bottom") ? root.barH : root.barW
     return Math.max(bar.barSize, actual) + root.gap
   }
+  // Graphite change: the bar strip is cut out of the mask, so a click on
+  // another bar icon reaches the bar itself. The bar then opens that panel
+  // and closes this one (requestPopout). Omarchy's own forwarding below only
+  // sees this plugin's own bar buttons when the panel is a user plugin, so a
+  // click on another plugin's icon used to close this panel and do nothing
+  // else.
+  readonly property real _barOnlySize: {
+    if (!bar) return 0
+    var actual = (root.barPos === "top" || root.barPos === "bottom") ? root.barH : root.barW
+    return Math.max(bar.barSize, actual)
+  }
   mask: Region {
     width: root.screenW
     height: root.screenH
+
+    Region {
+      intersection: Intersection.Subtract
+      x: root.barPos === "right" ? root.screenW - root._barOnlySize : 0
+      y: root.barPos === "bottom" ? root.screenH - root._barOnlySize : 0
+      width: (root.barPos === "left" || root.barPos === "right") ? root._barOnlySize : root.screenW
+      height: (root.barPos === "left" || root.barPos === "right") ? root.screenH : root._barOnlySize
+    }
   }
 
   // Track every layout change between the bar's contentItem and the
