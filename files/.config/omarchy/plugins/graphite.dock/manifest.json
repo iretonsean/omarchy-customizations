@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "graphite.dock",
+  "name": "Graphite dock",
+  "version": "1.0.0",
+  "author": "omarchy-customizations",
+  "description": "Dock at the bottom edge, drawn with the Graphite components. Reads the pins from ~/.cache/nwg-dock-pinned.",
+  "kinds": ["service"],
+  "entryPoints": {
+    "service": "Dock.qml"
+  }
+}

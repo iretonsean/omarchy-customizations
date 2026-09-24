@@ -5,4 +5,10 @@
 # ~/.config/nwg-dock-hyprland/pinned). Style: ~/.config/nwg-dock-hyprland/style.css.
 # The grid button opens the Omarchy apps menu.
 
+# The Graphite dock (a shell plugin) replaces nwg-dock. While it is on, do
+# nothing. To go back: omarchy plugin disable graphite.dock, then run this.
+if jq -e '.plugins[]? | select(.id == "graphite.dock")' "$HOME/.config/omarchy/shell.json" >/dev/null 2>&1; then
+  exit 0
+fi
+
 exec nwg-dock-hyprland -d -hd 150 -i 40 -mb 6 -iw special -c 'omarchy-menu toggle apps'

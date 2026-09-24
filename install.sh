@@ -36,13 +36,15 @@ while IFS= read -r -d '' file; do
   mkdir -p "$(dirname "$target")"
   cp --backup=numbered "$file" "$target"
 done < <(find . -type f -print0)
-chmod +x "$HOME/.local/bin/project-open" "$HOME/.local/bin/projects-apply" "$HOME/.local/bin/dock-start" "$HOME/.local/bin/terminal-paste"
+chmod +x "$HOME/.local/bin/project-open" "$HOME/.local/bin/projects-apply" "$HOME/.local/bin/dock-start" "$HOME/.local/bin/dock-pins" "$HOME/.local/bin/terminal-paste"
 
 echo "==> Projects"
 "$HOME/.local/bin/projects-apply"
 
 echo "==> Theme, fonts and cursor"
 omarchy theme set graphite
+# The dock is a shell plugin (files/.config/omarchy/plugins/graphite.dock).
+omarchy plugin enable graphite.dock >/dev/null
 omarchy font set "SFMono Nerd Font Mono"
 gsettings set org.gnome.desktop.interface font-name 'SF Pro Text 11'
 gsettings set org.gnome.desktop.interface monospace-font-name 'SFMono Nerd Font Mono 11'

@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+"""Change the dock's pinned items.
+
+The base list is ~/.config/nwg-dock-hyprland/pinned (one desktop id per line).
+Two special lines: "spacer" is a gap, "trash" is the trash. projects-apply
+writes the full list to ~/.cache/nwg-dock-pinned, with the project sites
+after "projects-menu". This script edits the base list and rebuilds the full
+list the same way, so the two stay in step.
+
+Usage:
+  dock-pins add-spacer-after <id>   Add a gap after an item
+  dock-pins remove-spacer <n>       Remove the nth gap (1 = first)
+  dock-pins pin <id>                Add an app before the trash
+  dock-pins unpin <id>              Remove an app
+"""
+
+import os
+import sys
+
+HOME = os.path.expanduser("~")
+BASE = os.path.join(HOME, ".config/nwg-dock-hyprland/pinned")
+FULL = os.path.join(HOME, ".cache/nwg-dock-pinned")
+
+
+def read(path):
+    if not os.path.exists(path):
+        return []
+    with open(path) as file:
+        return [line.strip() for line in file if line.strip()]
+
+
+def write(path, items):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path + ".tmp", "w") as file:
+        file.write("\n".join(items) + "\n")
+    os.replace(path + ".tmp", path)
+
+
+def main():
+    if len(sys.argv) < 3:
+        sys.exit(__doc__)
+    command, arg = sys.argv[1], sys.argv[2]
+
+    base = read(BASE)
+    full = read(FULL) or list(base)
+    project_pins = [item for item in full if item not in base and item != "spacer"]
+
+    if command == "add-spacer-after":
+        if arg in base:
+            at = base.index(arg) + 1
+        elif arg in project_pins and "projects-menu" in base:
+            # Project sites are placed after "projects-menu", so a gap there
+            # comes after the last project site.
+            at = base.index("projects-menu") + 1
+        else:
+            sys.exit(f"dock-pins: {arg} is not in the dock")
+        base.insert(at, "spacer")
+    elif command == "remove-spacer":
+        spacers = [i for i, item in enumerate(base) if item == "spacer"]
+        n = int(arg)
+        if not 1 <= n <= len(spacers):
+            sys.exit(f"dock-pins: there is no spacer {n}")
+        del base[spacers[n - 1]]
+    elif command == "pin":
+        if arg in base or arg in project_pins:
+            return
+        at = base.index("trash") if "trash" in base else len(base)
+        while at > 0 and base[at - 1] == "spacer":
+            at -= 1
+        base.insert(at, arg)
+    elif command == "unpin":
+        if arg in project_pins:
+            sys.exit(f"dock-pins: {arg} is a project site; change it in projects.json")
+        base = [item for item in base if item != arg]
+    else:
+        sys.exit(__doc__)
+
+    at = base.index("projects-menu") + 1 if "projects-menu" in base else len(base)
+    write(BASE, base)
+    write(FULL, base[:at] + project_pins + base[at:])
+
+
+if __name__ == "__main__":
+    main()
