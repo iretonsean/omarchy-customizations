@@ -1,0 +1,38 @@
+#!/bin/bash
+# Sends made-up notifications for screenshots and tests of the Graphite
+# notifications (files/.config/omarchy/plugins/graphite.notifications).
+# Nothing here names a real person, device, network or address.
+#
+# The critical one stays on screen until you dismiss it: Super+comma, or a
+# right-click on the card.
+
+set -euo pipefail
+
+send() {
+  omarchy-notification-send "$@"
+  sleep 0.4
+}
+
+# Normal, with a title, a body and a line glyph.
+send -u normal --app-name "Demo" -g "" \
+  "Agent session finished" "Portfolio site · 4 files changed"
+
+# A glyph only, no body (a one-line toast).
+send -g "󰄀" "Screenshot copied"
+
+# A click action: clicking the card sends one more notification.
+send -u normal --app-name "Demo" -g "󰂚" \
+  "Click me" "Clicking this card runs its action" \
+  --exec omarchy-notification-send -g "󰂚" "Action ran"
+
+# A long body, to check wrapping and the three-line limit.
+send -u normal --app-name "Demo" -g "" \
+  "Build log" "The build finished with warnings in three modules. Open the log to see each warning, the file it came from and the line number. Most of them are about unused imports and can wait until the next release."
+
+# An app icon from the icon theme, to check the rounded corners.
+send -u normal --app-name "Demo" -i utilities-terminal \
+  "App icon" "This card shows an icon from the icon theme"
+
+# Critical: stays until dismissed and shows "urgent".
+send -u critical --app-name "Demo" -g "" \
+  "Battery low" "5% left. Connect the charger."
