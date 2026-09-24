@@ -107,21 +107,80 @@ Claude, Claude Design, Figma and Paper, with their icons. They run in Chromium, 
 - SF Pro in menus and GTK apps, SF Mono in the terminal and the bar
 - Two backgrounds: "glow" and "plain"
 
+The theme's color tokens are in `colors.toml`. Templates in `files/.config/omarchy/themed/` turn them into `graphite.css` (for HTML pages and GTK apps) and the `[graphite]` section of the shell theme (for the Omarchy shell). The design brief is `docs/theme-direction.md`.
+
+## Graphite components
+
+Omarchy 4 draws the bar, the menus, the panels and the overlays in one Quickshell process. This repo has Graphite copies of those plugins (`files/.config/omarchy/plugins/graphite.*`). They use shared parts from `plugins/graphite-ui/`: group, label, value field, button, switch, slider, keycap, chip, search field and more. `install.sh` turns them on. Omarchy's own files are not changed.
+
+The screenshots show made-up data. `docs/screenshots/demo/demo-mode on` makes the panels show made-up network names, devices, addresses and a made-up Wi-Fi QR code. `demo-mode off` restores them.
+
+### Menu and keybindings
+
+The Omarchy menu has named groups (Go to, Configure, System). The Keybindings view (Super+K) shows one keycap per key, in 11 sections with jump-to chips. Tab and Shift+Tab move between sections. Series such as workspaces 1 to 10 show as one row. The search matches names and keys, for example "super shift f" or "workspace 3".
+
+| Menu, before | Menu, after |
+|---|---|
+| ![Omarchy menu before](docs/screenshots/menu-before.png) | ![Omarchy menu with Graphite groups](docs/screenshots/menu-after.png) |
+
+![Keybindings view with sections, chips and keycaps](docs/screenshots/keybindings-groups.png)
+
+![Keybindings search for "workspace 3"](docs/screenshots/keybindings-search.png)
+
+### Bar panels
+
+Wi-Fi, Bluetooth, Audio, Display and Claude Code. One click on another bar icon switches to its panel.
+
+| Before | After |
+|---|---|
+| ![Wi-Fi panel before](docs/screenshots/panel-network-before.png) | ![Wi-Fi panel after](docs/screenshots/panel-network-after.png) |
+| ![Bluetooth panel before](docs/screenshots/panel-bluetooth-before.png) | ![Bluetooth panel after](docs/screenshots/panel-bluetooth-after.png) |
+| ![Audio panel before](docs/screenshots/panel-audio-before.png) | ![Audio panel after](docs/screenshots/panel-audio-after.png) |
+| ![Display panel before](docs/screenshots/panel-monitor-before.png) | ![Display panel after](docs/screenshots/panel-monitor-after.png) |
+| ![Claude Code panel before](docs/screenshots/panel-agents-before.png) | ![Claude Code panel after](docs/screenshots/panel-agents-after.png) |
+
+### Speed tests and Wi-Fi sharing
+
+| Internet speed | Disk speed | Wi-Fi QR code |
+|---|---|---|
+| ![Internet speed test](docs/screenshots/speedtest-after.png) | ![Disk speed test](docs/screenshots/disk-speedtest-after.png) | ![Wi-Fi QR code](docs/screenshots/wifiqr-after.png) |
+
+### Files
+
+Graphite styles for the Files app (Nautilus) in `files/.config/gtk-4.0/gtk.css`. A small library (`files/.local/src/gtk4-pointer/`) gives GTK 4 apps the hand cursor on clickable items.
+
+| Before | After |
+|---|---|
+| ![Files before](docs/screenshots/files-before.png) | ![Files after](docs/screenshots/files-after.png) |
+| ![Files list before](docs/screenshots/files-before-list.png) | ![Files list after](docs/screenshots/files-after-list.png) |
+
+### Workspace guide
+
+The guide page (`files/.local/share/workspace-guide/index.html`) is also the component sheet.
+
+| Before | After |
+|---|---|
+| ![Guide before](docs/screenshots/guide-before.png) | ![Guide after](docs/screenshots/guide-after.png) |
+
 ### Cursor
 
 The pre-Tahoe macOS cursor theme (`apple_cursor` package), set in `files/.config/hypr/looknfeel.lua` and `files/.icons/default/index.theme`.
 
 ### Dock
 
-`nwg-dock-hyprland` at the bottom of the screen. It hides until the pointer reaches the bottom edge. `files/.local/bin/dock-start` starts it, and `files/.config/hypr/autostart.lua` runs that at login. The base pins are in `files/.config/nwg-dock-hyprland/pinned`. `projects-apply` adds your project sites after Projects and writes the result to `~/.cache/nwg-dock-pinned`.
+A Graphite plugin in the Omarchy shell (`files/.config/omarchy/plugins/graphite.dock/`) at the bottom of the screen. It hides until the pointer reaches the bottom edge. Right-click an icon to pin or unpin it, add or remove a gap, or empty the trash. It replaces `nwg-dock-hyprland`, which drew blurry and missing icons. The base pins are still in `files/.config/nwg-dock-hyprland/pinned`, and `projects-apply` adds your project sites. To go back to `nwg-dock-hyprland`, run `omarchy plugin disable graphite.dock`, then `dock-start`.
+
+| Before | After |
+|---|---|
+| ![nwg-dock before](docs/screenshots/dock-before.png) | ![Graphite dock](docs/screenshots/dock-after.png) |
 
 ### Display
 
 `files/.config/hypr/monitors.lua` sets scale 2 for the MacBook's Retina screen. Change it for other screens.
 
-## Known issue: Keybindings menu in SF Pro
+## Known issue: Omarchy's Keybindings menu in SF Pro
 
-The Keybindings menu (Super+K) lines up its columns with spaces, which works only in a monospace font. With SF Pro as the menu font, the arrows do not line up:
+The Graphite menu draws keybindings as keycaps (see above), so this issue shows only with Omarchy's own menu. Omarchy's Keybindings menu (Super+K) lines up its columns with spaces, which works only in a monospace font. With SF Pro as the menu font, the arrows do not line up:
 
 ![Keybindings menu in SF Pro, columns not aligned](docs/screenshots/keybindings-before.png)
 
@@ -131,13 +190,13 @@ A fix for Omarchy is ready but not yet submitted. It lets the menu draw real col
 |---|---|---|
 | ![After, SF Pro](docs/screenshots/keybindings-after-sf-pro.png) | ![After, monospace](docs/screenshots/keybindings-after-monospace.png) | ![After, filtered](docs/screenshots/keybindings-after-filtered.png) |
 
-Until Omarchy includes the fix, this repo has the "before" behavior.
+Until Omarchy includes the fix, Omarchy's own menu has the "before" behavior.
 
 ## Packages
 
 | Package | Source | Used for |
 |---|---|---|
-| `nwg-dock-hyprland` | Arch | Dock |
+| `nwg-dock-hyprland` | Arch | Old dock, kept as a fallback |
 | `breeze-icons` | Arch | Icon for the Projects launcher |
 | `otf-apple-sf-pro` | AUR | SF Pro font |
 | `nerd-fonts-sf-mono` | AUR | SF Mono with Nerd Font icons |

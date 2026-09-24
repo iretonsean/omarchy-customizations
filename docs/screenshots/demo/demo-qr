@@ -1,0 +1,13 @@
+#!/bin/bash
+# Prints the output of `omarchy-network-qr --meta` for a made-up network,
+# so the Wi-Fi QR screenshot encodes no real network or password.
+printf 'meta\t%s\t%s\t%s\n' wlan0 WPA "Studio Wi-Fi"
+printf '%s' 'WIFI:T:WPA;S:Studio Wi-Fi;P:not-a-real-password;;' |
+  qrencode --type ASCII --margin 4 --output - |
+  while IFS= read -r line; do
+    row=
+    for ((column = 0; column < ${#line}; column += 2)); do
+      [[ ${line:column:2} == *#* ]] && row+=1 || row+=0
+    done
+    printf '%s\n' "$row"
+  done
