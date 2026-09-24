@@ -113,13 +113,13 @@ Contrast on `surface-1`: `text-3` 6.2:1, `label-tint` 5.1:1, `ok` 9.9:1, `error`
 
 | # | Surface | What to change | Notes |
 |---|---|---|---|
-| 1 | Omarchy menu (Quickshell) | Panel, groups with names, rows with line icons, lift for focus, keycaps for shortcuts. Remove the 2px blue border. | Most-used surface. Find where the Quickshell menu reads its theme. |
-| 2 | Keybindings (Super+K) | Two columns of groups (Launch, Design, Windows, Workspaces), keycaps | Needs the column fix in the README. Keycaps need one element per key. |
-| 3 | Notifications (mako) | Notification component | Mako cannot put the time at the right edge. Put it after the title. |
-| 4 | Waybar clock and calendar | Mono clock, calendar component | The tooltip uses Pango markup. A filled square for today may not be possible; a bold `accent-soft` date is. |
-| 5 | OSD (swayosd) | OSD component | |
-| 6 | Dock (nwg-dock) | Tokens, not fixed hex values | Also makes the dock follow the theme. |
-| 7 | Lock screen (hyprlock) | Mono clock, password field as a value field | |
+| 1 | Omarchy menu (`omarchy.menu`) | Panel, groups with names, rows with line icons, lift for focus, keycaps for shortcuts. Remove the 2px blue border. | Needs a clone of the plugin. The stock menu has no groups or keycaps, and its radius follows the window rounding. |
+| 2 | Keybindings (Super+K) | Two columns of groups (Launch, Design, Windows, Workspaces, Other), keycaps | The same menu clone, in dmenu mode. The clone splits each line into keycaps, so the column fix in the README is not needed. Bindings outside the four groups go in "Other". |
+| 3 | Notifications (`omarchy.notifications`) | Notification component, with the time at the right edge | Needs a clone. The stock card shows no time and uses a fixed "Liberation Sans" title. |
+| 4 | Bar clock and calendar (`omarchy.clock`) | Mono clock, calendar component | The calendar is a QML panel. In a clone, today can be a filled `accent-soft` square. |
+| 5 | OSD (`omarchy.osd`) | OSD component | Needs a clone. |
+| 6 | Dock (nwg-dock) | Tokens, not fixed hex values | GTK CSS imports a file generated from the tokens. Also makes the dock follow the theme. |
+| 7 | Lock screen (`omarchy.lock`) | Mono clock, password field as a value field | Needs a clone. |
 | 8 | Workspace guide (HTML) | All components | Full control. Build it first as the component sheet. |
 
 Wi-Fi and Bluetooth are terminal apps (impala and bluetui). They take only the terminal colors.
@@ -128,15 +128,18 @@ Wi-Fi and Bluetooth are terminal apps (impala and bluetui). They take only the t
 
 1. Build the workspace guide as the component sheet. It is HTML, so every component can be made exactly and checked on screen.
 2. Put the tokens in the theme folder.
-3. Apply them to the Quickshell menu, then keybindings, mako, waybar, swayosd, the dock and hyprlock.
+3. Apply them to the menu, then keybindings, notifications, the clock and calendar, the OSD, the dock and the lock screen.
 4. Take a screenshot of each surface before and after, into `docs/screenshots/`.
 5. Update the README theme section.
 
-## Check on the machine
+## How Omarchy 4 does it
 
-- Which files in a theme folder Omarchy 4 reads for the Quickshell menu, waybar, mako, swayosd and hyprlock.
-- Whether `colors.toml` accepts extra keys and passes them to templates. If not, keep the tokens in one CSS or QML file that the others import.
-- Whether the Quickshell menu can draw one keycap per key and show a group name inside a group.
+Checked on Omarchy 4.0.4. Omarchy is installed at `/usr/share/omarchy` and is not edited.
+
+- **One shell.** Waybar, mako, swayosd and hyprlock are not used. One Quickshell process draws the bar, menu, notifications, OSD, calendar and lock screen. Each is a plugin in `/usr/share/omarchy/shell/plugins/`.
+- **Theme files.** The shell reads five colors from `colors.toml` (foreground, background, accent, red, muted) and each surface's colors, border widths, spacing and font sizes from `shell.toml`. The panel radius follows Hyprland's `decoration.rounding`. Theme files cannot add groups, keycaps, shadows or new layouts.
+- **Clones.** `omarchy plugin clone <id>` copies a plugin to `~/.config/omarchy/plugins/`. The copy replaces the built-in plugin, reloads on save and survives updates. It does not get Omarchy's later fixes to that plugin.
+- **Tokens.** `colors.toml` accepts extra keys and passes them to templates as `{{ key }}`. The tokens live in `themes/graphite/colors.toml`. User templates in `~/.config/omarchy/themed/` turn them into `graphite.css` (for HTML and GTK) and a `[graphite]` section in `shell.toml` (for the clones). Other themes get fallback values.
 
 ## Directions to explore
 
