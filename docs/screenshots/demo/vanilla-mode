@@ -11,6 +11,9 @@ Omarchy's own plugins in the bar. The Wi-Fi, Bluetooth, Claude Code, speed
 test and Wi-Fi QR panels run as copies of Omarchy's code (vanilla.* ids)
 with the same made-up data as demo-mode. Omarchy's own files do not change.
 
+This repo's menu extension (Projects and more) is moved aside too, so the
+menu shows only Omarchy's own items.
+
 The Graphite theme sets OMARCHY_MENU_FONT (SF Pro) in Hyprland's
 environment, and a theme change does not clear it. The shell starts from
 Hyprland, so "on" sets it to "" there (the menu then uses Omarchy's font)
@@ -31,6 +34,7 @@ HOME = os.path.expanduser("~")
 STOCK = "/usr/share/omarchy/shell/plugins"
 PLUGINS = os.path.join(HOME, ".config/omarchy/plugins")
 SHELL_JSON = os.path.join(HOME, ".config/omarchy/shell.json")
+MENU_EXTENSION = os.path.join(HOME, ".config/omarchy/extensions/omarchy-menu.jsonc")
 SAVE = os.path.join(HOME, ".cache/omarchy-vanilla-mode")
 FONT_FILES = [".config/alacritty/alacritty.toml", ".config/kitty/kitty.conf", ".config/ghostty/config",
               ".config/foot/foot.ini", ".config/fontconfig/fonts.conf"]
@@ -128,6 +132,7 @@ def on():
         if os.path.exists(src):
             os.makedirs(os.path.dirname(os.path.join(SAVE, "files", rel)), exist_ok=True)
             shutil.copy2(src, os.path.join(SAVE, "files", rel))
+    if os.path.exists(MENU_EXTENSION): shutil.move(MENU_EXTENSION, os.path.join(SAVE, "omarchy-menu.jsonc"))
     for name, (src, edits) in COPIES.items(): make_copy(name, src, edits)
     config = vanilla_shell(json.load(open(SHELL_JSON)))
     json.dump(config, open(SHELL_JSON, "w"), indent=2)
@@ -138,6 +143,8 @@ def on():
 def off():
     if not os.path.exists(SAVE): sys.exit("vanilla-mode: not on")
     shutil.copy2(os.path.join(SAVE, "shell.json"), SHELL_JSON)
+    saved_menu = os.path.join(SAVE, "omarchy-menu.jsonc")
+    if os.path.exists(saved_menu): shutil.move(saved_menu, MENU_EXTENSION)
     for name in COPIES: shutil.rmtree(os.path.join(PLUGINS, "vanilla." + name), ignore_errors=True)
     run("omarchy-theme-set", open(os.path.join(SAVE, "theme")).read().strip())
     for rel in FONT_FILES:

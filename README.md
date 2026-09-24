@@ -121,7 +121,7 @@ The Omarchy menu has named groups (Go to, Configure, System). The Keybindings vi
 
 | Menu, before | Menu, after |
 |---|---|
-| ![Omarchy menu before](docs/screenshots/menu-before.png) | ![Omarchy menu with Graphite groups](docs/screenshots/menu-after.png) |
+| ![Omarchy menu before](docs/screenshots/menu-before-vanilla.png) | ![Omarchy menu with Graphite groups](docs/screenshots/menu-after.png) |
 
 Keybindings, before:
 
