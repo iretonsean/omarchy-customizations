@@ -34,7 +34,9 @@ function normalizeItem(id, raw) {
     provider: value.provider || "",
     aliases: aliases,
     when: value.when || "",
-    checked: value.checked || ""
+    checked: value.checked || "",
+    // Graphite: the group this row belongs to in its menu (optional).
+    group: value.group || ""
   }
 }
 
