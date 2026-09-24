@@ -1,0 +1,302 @@
+#!/usr/bin/env python3
+"""Scroll momentum for Chromium and Electron apps on a trackpad.
+
+GTK apps continue a two-finger scroll after the fingers lift (momentum).
+Chromium and Electron apps on Linux do not. This program adds it for them:
+
+1. It reads the trackpad's finger positions (/dev/input, read only; it does
+   not take the device from Hyprland).
+2. When two fingers lift during a scroll, it works out their speed.
+3. If the window with focus is a Chromium or Electron app, it keeps
+   scrolling through a virtual scroll wheel (/dev/uinput) and slows down
+   like macOS. A new touch stops it at once.
+
+It needs read access to /dev/input and write access to /dev/uinput: the user
+must be in the "input" group (install.sh sets this up). Settings are in
+~/.config/trackpad-momentum.conf. Run with --check to see what it finds.
+"""
+
+import fcntl
+import glob
+import json
+import os
+import re
+import select
+import struct
+import subprocess
+import sys
+import time
+from collections import deque
+
+# Linux input constants (linux/input-event-codes.h).
+EV_SYN, EV_KEY, EV_REL, EV_ABS = 0, 1, 2, 3
+SYN_REPORT = 0
+BTN_LEFT = 0x110
+BTN_TOUCH = 0x14A
+BTN_TOOL_FINGER, BTN_TOOL_QUINTTAP = 0x145, 0x148
+BTN_TOOL_DOUBLETAP, BTN_TOOL_TRIPLETAP, BTN_TOOL_QUADTAP = 0x14D, 0x14E, 0x14F
+FINGER_TOOLS = {BTN_TOOL_FINGER: 1, BTN_TOOL_DOUBLETAP: 2, BTN_TOOL_TRIPLETAP: 3,
+                BTN_TOOL_QUADTAP: 4, BTN_TOOL_QUINTTAP: 5}
+ABS_MT_SLOT, ABS_MT_POSITION_X, ABS_MT_POSITION_Y, ABS_MT_TRACKING_ID = 0x2F, 0x35, 0x36, 0x39
+REL_X, REL_Y, REL_HWHEEL, REL_WHEEL = 0, 1, 6, 8
+REL_WHEEL_HI_RES, REL_HWHEEL_HI_RES = 11, 12
+
+EVENT = struct.Struct("llHHi")  # struct input_event on 64-bit
+
+
+def _ioc(direction, kind, number, size):
+    return (direction << 30) | (size << 16) | (ord(kind) << 8) | number
+
+
+UI_SET_EVBIT = _ioc(1, "U", 100, 4)
+UI_SET_KEYBIT = _ioc(1, "U", 101, 4)
+UI_SET_RELBIT = _ioc(1, "U", 102, 4)
+UI_DEV_CREATE = _ioc(0, "U", 1, 0)
+UI_DEV_DESTROY = _ioc(0, "U", 2, 0)
+
+DEFAULTS = {
+    # Wheel units (120 = one wheel notch) per millimetre of finger travel.
+    "units_per_mm": 36.0,
+    # Multiplies the momentum speed.
+    "speed": 1.0,
+    # Speed kept per millisecond; 0.998 is the macOS default.
+    "deceleration": 0.998,
+    # Finger speed (mm/s) needed to start momentum, and the speed where it stops.
+    "start_speed": 60.0,
+    "stop_speed": 8.0,
+    # The fingers must still be moving this close (ms) to the lift.
+    "max_pause_ms": 60.0,
+    # Window classes that get momentum (regular expression).
+    "apps": r"^(chromium|Chromium|google-chrome|chrome-.*|obsidian|com\.t3tools\.T3Code|t3code|Electron|code|Code|Slack|discord)$",
+}
+
+CONFIG = os.path.expanduser("~/.config/trackpad-momentum.conf")
+
+
+def load_config():
+    config = dict(DEFAULTS)
+    if os.path.exists(CONFIG):
+        with open(CONFIG) as file:
+            for line in file:
+                line = line.strip()
+                if line.startswith("#") or "=" not in line:
+                    continue
+                key, value = (part.strip() for part in line.split("=", 1))
+                if key in DEFAULTS:
+                    config[key] = value if key == "apps" else float(value)
+    config["apps_re"] = re.compile(config["apps"])
+    return config
+
+
+def find_trackpad():
+    """The event device with multitouch positions and a two-finger tool."""
+    best = None
+    for path in sorted(glob.glob("/dev/input/event*")):
+        name = os.path.basename(path)
+        caps = f"/sys/class/input/{name}/device/capabilities"
+        try:
+            abs_bits = int("".join(open(f"{caps}/abs").read().split()), 16)
+            key_words = open(f"{caps}/key").read().split()
+            key_bits = int("".join(w.rjust(16, "0") for w in key_words), 16)
+            label = open(f"/sys/class/input/{name}/device/name").read().strip()
+        except (OSError, ValueError):
+            continue
+        if abs_bits >> ABS_MT_POSITION_X & 1 and key_bits >> BTN_TOOL_DOUBLETAP & 1:
+            score = 1 + ("trackpad" in label.lower() or "touchpad" in label.lower())
+            if not best or score > best[0]:
+                best = (score, path, label)
+    return (best[1], best[2]) if best else (None, None)
+
+
+def resolution(fd, axis):
+    """Device units per millimetre on an axis (1 when the device does not say)."""
+    try:
+        data = fcntl.ioctl(fd, _ioc(2, "E", 0x40 + axis, 24), bytes(24))
+        res = struct.unpack("iiiiii", data)[5]
+        return res if res > 0 else 1
+    except OSError:
+        return 1
+
+
+class VirtualWheel:
+    """A virtual mouse that only scrolls."""
+
+    def __init__(self):
+        self.fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
+        for ev in (EV_SYN, EV_KEY, EV_REL):
+            fcntl.ioctl(self.fd, UI_SET_EVBIT, ev)
+        fcntl.ioctl(self.fd, UI_SET_KEYBIT, BTN_LEFT)  # so it counts as a pointer
+        for rel in (REL_X, REL_Y, REL_WHEEL, REL_HWHEEL, REL_WHEEL_HI_RES, REL_HWHEEL_HI_RES):
+            fcntl.ioctl(self.fd, UI_SET_RELBIT, rel)
+        setup = struct.pack("80sHHHHi" + "i" * 256, b"trackpad-momentum", 0x06, 0x1, 0x1, 1, 0, *([0] * 256))
+        os.write(self.fd, setup)
+        fcntl.ioctl(self.fd, UI_DEV_CREATE)
+        self.rest = {REL_WHEEL: 0.0, REL_HWHEEL: 0.0}
+        self.low = {REL_WHEEL: 0, REL_HWHEEL: 0}
+
+    def scroll(self, vertical, horizontal):
+        """Scroll by wheel units (120 = one notch); fractions carry over."""
+        events = []
+        for axis, hi_res, amount in ((REL_WHEEL, REL_WHEEL_HI_RES, vertical),
+                                     (REL_HWHEEL, REL_HWHEEL_HI_RES, horizontal)):
+            self.rest[axis] += amount
+            whole = int(self.rest[axis])
+            if not whole:
+                continue
+            self.rest[axis] -= whole
+            events.append((EV_REL, hi_res, whole))
+            self.low[axis] += whole
+            notches = int(self.low[axis] / 120)
+            if notches:
+                self.low[axis] -= notches * 120
+                events.append((EV_REL, axis, notches))
+        if events:
+            data = b"".join(EVENT.pack(0, 0, t, c, v) for t, c, v in events)
+            os.write(self.fd, data + EVENT.pack(0, 0, EV_SYN, SYN_REPORT, 0))
+
+    def reset(self):
+        self.rest = {REL_WHEEL: 0.0, REL_HWHEEL: 0.0}
+        self.low = {REL_WHEEL: 0, REL_HWHEEL: 0}
+
+
+def hypr_json(*args):
+    try:
+        out = subprocess.run(["hyprctl", "-j", *args], capture_output=True, text=True, timeout=0.3).stdout
+        return json.loads(out or "{}")
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return {}
+
+
+def momentum_wanted(config):
+    window = hypr_json("activewindow")
+    return bool(window) and bool(config["apps_re"].match(str(window.get("class", ""))))
+
+
+def natural_scroll():
+    return bool(hypr_json("getoption", "input:touchpad:natural_scroll").get("bool", False))
+
+
+def run(config, device_path):
+    dev = os.open(device_path, os.O_RDONLY | os.O_NONBLOCK)
+    res_x, res_y = resolution(dev, ABS_MT_POSITION_X), resolution(dev, ABS_MT_POSITION_Y)
+    wheel = VirtualWheel()
+
+    slots, slot = {}, 0            # slot -> [tracking_id, x, y]
+    fingers = 0
+    samples = deque(maxlen=64)     # (time, cx_mm, cy_mm) while two fingers scroll
+    velocity = None                # [vx, vy] in mm/s while momentum runs
+    natural = True                 # natural scrolling was on at the lift
+    last_tick = 0.0
+    buffer = b""
+
+    while True:
+        timeout = 0.008 if velocity else None
+        ready, _, _ = select.select([dev], [], [], timeout)
+        now = time.monotonic()
+
+        if ready:
+            try:
+                buffer += os.read(dev, EVENT.size * 64)
+            except BlockingIOError:
+                pass
+            while len(buffer) >= EVENT.size:
+                _, _, etype, code, value = EVENT.unpack_from(buffer)
+                buffer = buffer[EVENT.size:]
+
+                if etype == EV_KEY and code in FINGER_TOOLS:
+                    if value:
+                        fingers = FINGER_TOOLS[code]
+                    elif fingers == FINGER_TOOLS[code]:
+                        fingers = 0
+                    if value:
+                        velocity = None  # a new touch stops momentum
+                elif etype == EV_KEY and code == BTN_TOUCH and value:
+                    velocity = None
+                elif etype == EV_ABS and code == ABS_MT_SLOT:
+                    slot = value
+                elif etype == EV_ABS and code == ABS_MT_TRACKING_ID:
+                    if value < 0:
+                        slots.pop(slot, None)
+                    else:
+                        slots[slot] = [value, None, None]
+                elif etype == EV_ABS and code in (ABS_MT_POSITION_X, ABS_MT_POSITION_Y):
+                    entry = slots.setdefault(slot, [0, None, None])
+                    entry[1 if code == ABS_MT_POSITION_X else 2] = value
+                elif etype == EV_SYN and code == SYN_REPORT:
+                    points = [(x, y) for _, x, y in slots.values() if x is not None and y is not None]
+                    if fingers == 2 and len(points) == 2:
+                        cx = sum(p[0] for p in points) / 2 / res_x
+                        cy = sum(p[1] for p in points) / 2 / res_y
+                        samples.append((now, cx, cy))
+                    elif samples and fingers < 2:
+                        fling = start_momentum(config, samples, now)
+                        velocity, natural = (fling[:2], fling[2]) if fling else (None, True)
+                        samples.clear()
+                        last_tick = now
+                        wheel.reset()
+
+        if velocity and now - last_tick >= 0.004:
+            dt = now - last_tick
+            last_tick = now
+            keep = config["deceleration"] ** (dt * 1000)
+            velocity = [velocity[0] * keep, velocity[1] * keep]
+            speed = max(abs(velocity[0]), abs(velocity[1]))
+            if speed < config["stop_speed"]:
+                velocity = None
+                continue
+            scale = config["units_per_mm"] * config["speed"] * dt
+            # Continue the direction the content was moving.
+            sign = 1 if natural else -1
+            wheel.scroll(sign * velocity[1] * scale, -sign * velocity[0] * scale)
+
+
+def start_momentum(config, samples, now):
+    """[vx, vy, natural] at the lift (mm/s), or None when there is no fling."""
+    last_t, last_x, last_y = samples[-1]
+    if (now - last_t) * 1000 > config["max_pause_ms"]:
+        return None
+    window = [s for s in samples if last_t - s[0] <= 0.08]
+    if len(window) < 3:
+        return None
+    t0, x0, y0 = window[0]
+    dt = last_t - t0
+    if dt <= 0:
+        return None
+    vx, vy = (last_x - x0) / dt, (last_y - y0) / dt
+    # Lock to the main axis, as scrolling does.
+    if abs(vy) >= 2 * abs(vx):
+        vx = 0.0
+    elif abs(vx) >= 2 * abs(vy):
+        vy = 0.0
+    if max(abs(vx), abs(vy)) < config["start_speed"]:
+        return None
+    if not momentum_wanted(config):
+        return None
+    return [vx, vy, natural_scroll()]
+
+
+def main():
+    config = load_config()
+    path, label = find_trackpad()
+    if "--check" in sys.argv:
+        print(f"trackpad: {path} ({label})" if path else "trackpad: not found")
+        for target, mode in ((path, os.R_OK), ("/dev/uinput", os.W_OK)):
+            if target:
+                print(f"{target}: {'ok' if os.access(target, mode) else 'no access (is the user in the input group?)'}")
+        window = hypr_json("activewindow")
+        print(f"focused window: {window.get('class', '?')}; momentum: {'yes' if momentum_wanted(config) else 'no'}")
+        print(f"natural scrolling: {natural_scroll()}")
+        return
+    if not path:
+        sys.exit("trackpad-momentum: no trackpad found")
+    while True:
+        try:
+            run(config, path)
+        except OSError as error:
+            print(f"trackpad-momentum: {error}; retrying", file=sys.stderr)
+            time.sleep(3)
+            path, _ = find_trackpad()
+
+
+if __name__ == "__main__":
+    main()

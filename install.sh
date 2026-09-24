@@ -36,7 +36,7 @@ while IFS= read -r -d '' file; do
   mkdir -p "$(dirname "$target")"
   cp --backup=numbered "$file" "$target"
 done < <(find . -type f -print0)
-chmod +x "$HOME/.local/bin/project-open" "$HOME/.local/bin/projects-apply" "$HOME/.local/bin/dock-start" "$HOME/.local/bin/dock-pins" "$HOME/.local/bin/gtk4-pointer-run" "$HOME/.local/bin/files-open" "$HOME/.local/bin/terminal-paste"
+chmod +x "$HOME/.local/bin/project-open" "$HOME/.local/bin/projects-apply" "$HOME/.local/bin/dock-start" "$HOME/.local/bin/dock-pins" "$HOME/.local/bin/gtk4-pointer-run" "$HOME/.local/bin/files-open" "$HOME/.local/bin/trackpad-momentum" "$HOME/.local/bin/terminal-paste"
 
 echo "==> Pointer cursor in GTK 4 apps"
 # Builds the library from files/.local/src/gtk4-pointer and starts Files
@@ -51,6 +51,9 @@ if gcc -shared -fPIC -O2 -o "$HOME/.local/lib/libgtk4-pointer.so" \
 else
   echo "Could not build gtk4-pointer (it needs gcc and gtk4). Skipping it." >&2
 fi
+
+echo "==> Trackpad"
+"$REPO/system-setup.sh"
 
 echo "==> Projects"
 "$HOME/.local/bin/projects-apply"
