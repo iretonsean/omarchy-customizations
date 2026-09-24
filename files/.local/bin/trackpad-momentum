@@ -7,8 +7,10 @@ Electron apps, terminals, Qt apps). This program continues the scroll:
 1. It reads the trackpad's finger positions (/dev/input, read only; it does
    not take the device from Hyprland).
 2. When two fingers lift after a real scroll, it works out their speed.
-3. It keeps scrolling the window under the pointer through a virtual scroll
-   wheel (/dev/uinput) and slows down smoothly. A new touch stops it at once.
+3. It keeps two fingers moving on a virtual trackpad (/dev/uinput) and slows
+   them down smoothly. libinput turns that into the same smooth trackpad
+   scroll as real fingers make, so the glide looks like a continued swipe
+   in every app. A new touch stops it at once.
 
 Apps with momentum of their own (GTK apps such as Files, Firefox) are
 skipped, so they do not scroll twice. Nothing happens over a panel, menu or
@@ -41,8 +43,9 @@ BTN_TOOL_DOUBLETAP, BTN_TOOL_TRIPLETAP, BTN_TOOL_QUADTAP = 0x14D, 0x14E, 0x14F
 FINGER_TOOLS = {BTN_TOOL_FINGER: 1, BTN_TOOL_DOUBLETAP: 2, BTN_TOOL_TRIPLETAP: 3,
                 BTN_TOOL_QUADTAP: 4, BTN_TOOL_QUINTTAP: 5}
 ABS_MT_SLOT, ABS_MT_POSITION_X, ABS_MT_POSITION_Y, ABS_MT_TRACKING_ID = 0x2F, 0x35, 0x36, 0x39
-REL_X, REL_Y, REL_HWHEEL, REL_WHEEL = 0, 1, 6, 8
-REL_WHEEL_HI_RES, REL_HWHEEL_HI_RES = 11, 12
+ABS_X, ABS_Y = 0x00, 0x01
+INPUT_PROP_POINTER, INPUT_PROP_BUTTONPAD = 0x00, 0x02
+VIRTUAL_NAME = "trackpad-momentum virtual trackpad"
 
 EVENT = struct.Struct("llHHi")  # struct input_event on 64-bit
 
@@ -53,13 +56,14 @@ def _ioc(direction, kind, number, size):
 
 UI_SET_EVBIT = _ioc(1, "U", 100, 4)
 UI_SET_KEYBIT = _ioc(1, "U", 101, 4)
-UI_SET_RELBIT = _ioc(1, "U", 102, 4)
+UI_SET_ABSBIT = _ioc(1, "U", 103, 4)
+UI_SET_PROPBIT = _ioc(1, "U", 110, 4)
+UI_DEV_SETUP = _ioc(1, "U", 3, 92)
+UI_ABS_SETUP = _ioc(1, "U", 4, 28)
 UI_DEV_CREATE = _ioc(0, "U", 1, 0)
 UI_DEV_DESTROY = _ioc(0, "U", 2, 0)
 
 DEFAULTS = {
-    # Wheel units (120 = one wheel notch) per millimetre of finger travel.
-    "units_per_mm": 36.0,
     # Multiplies the momentum speed.
     "speed": 1.0,
     # Speed kept per millisecond; 0.998 gives a long, smooth glide.
@@ -114,6 +118,8 @@ def find_trackpad():
             label = open(f"/sys/class/input/{name}/device/name").read().strip()
         except (OSError, ValueError):
             continue
+        if label == VIRTUAL_NAME:
+            continue
         if abs_bits >> ABS_MT_POSITION_X & 1 and key_bits >> BTN_TOOL_DOUBLETAP & 1:
             score = 1 + ("trackpad" in label.lower() or "touchpad" in label.lower())
             if not best or score > best[0]:
@@ -131,45 +137,96 @@ def resolution(fd, axis):
         return 1
 
 
-class VirtualWheel:
-    """A virtual mouse that only scrolls."""
+class VirtualTrackpad:
+    """A virtual trackpad with two fingers that the program moves.
 
-    def __init__(self):
+    It has the real trackpad's resolution, so a millimetre is a millimetre,
+    but it is 20 times larger, so a long glide never reaches an edge. It
+    uses a neutral vendor id, so libinput's Apple-specific quirks do not
+    apply to it.
+    """
+
+    SCALE = 20
+
+    def __init__(self, real_fd):
         self.fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
-        for ev in (EV_SYN, EV_KEY, EV_REL):
+        for ev in (EV_SYN, EV_KEY, EV_ABS):
             fcntl.ioctl(self.fd, UI_SET_EVBIT, ev)
-        fcntl.ioctl(self.fd, UI_SET_KEYBIT, BTN_LEFT)  # so it counts as a pointer
-        for rel in (REL_X, REL_Y, REL_WHEEL, REL_HWHEEL, REL_WHEEL_HI_RES, REL_HWHEEL_HI_RES):
-            fcntl.ioctl(self.fd, UI_SET_RELBIT, rel)
-        setup = struct.pack("80sHHHHi" + "i" * 256, b"trackpad-momentum", 0x06, 0x1, 0x1, 1, 0, *([0] * 256))
-        os.write(self.fd, setup)
+        for key in (BTN_LEFT, BTN_TOUCH, BTN_TOOL_FINGER, BTN_TOOL_DOUBLETAP,
+                    BTN_TOOL_TRIPLETAP, BTN_TOOL_QUADTAP):
+            fcntl.ioctl(self.fd, UI_SET_KEYBIT, key)
+        for prop in (INPUT_PROP_POINTER, INPUT_PROP_BUTTONPAD):
+            fcntl.ioctl(self.fd, UI_SET_PROPBIT, prop)
+
+        self.res = {}
+        axes = []
+        for axis, real_axis in ((ABS_X, ABS_MT_POSITION_X), (ABS_Y, ABS_MT_POSITION_Y),
+                                (ABS_MT_POSITION_X, ABS_MT_POSITION_X), (ABS_MT_POSITION_Y, ABS_MT_POSITION_Y)):
+            lo, hi, res = absinfo(real_fd, real_axis)
+            half = (hi - lo) * self.SCALE // 2
+            axes.append((axis, -half, half, res))
+            self.res[axis] = res
+        axes += [(ABS_MT_SLOT, 0, 4, 0), (ABS_MT_TRACKING_ID, 0, 65535, 0)]
+        for axis, *_ in axes:
+            fcntl.ioctl(self.fd, UI_SET_ABSBIT, axis)
+
+        setup = struct.pack("HHHH80sI", 0x06, 0x1, 0x1, 1, VIRTUAL_NAME.encode(), 0)
+        fcntl.ioctl(self.fd, UI_DEV_SETUP, setup)
+        for axis, lo, hi, res in axes:
+            fcntl.ioctl(self.fd, UI_ABS_SETUP, struct.pack("H2x6i", axis, 0, lo, hi, 0, 0, res))
         fcntl.ioctl(self.fd, UI_DEV_CREATE)
-        self.rest = {REL_WHEEL: 0.0, REL_HWHEEL: 0.0}
-        self.low = {REL_WHEEL: 0, REL_HWHEEL: 0}
 
-    def scroll(self, vertical, horizontal):
-        """Scroll by wheel units (120 = one notch); fractions carry over."""
+        self.active = False
+        self.x = self.y = 0.0      # centre of the two fingers, in mm
+        self.tracking = 0
+
+    def _emit(self, events):
+        data = b"".join(EVENT.pack(0, 0, t, c, v) for t, c, v in events)
+        os.write(self.fd, data + EVENT.pack(0, 0, EV_SYN, SYN_REPORT, 0))
+
+    def _fingers(self):
+        """Position events for both fingers, 10 mm apart side by side."""
+        rx, ry = self.res[ABS_MT_POSITION_X], self.res[ABS_MT_POSITION_Y]
         events = []
-        for axis, hi_res, amount in ((REL_WHEEL, REL_WHEEL_HI_RES, vertical),
-                                     (REL_HWHEEL, REL_HWHEEL_HI_RES, horizontal)):
-            self.rest[axis] += amount
-            whole = int(self.rest[axis])
-            if not whole:
-                continue
-            self.rest[axis] -= whole
-            events.append((EV_REL, hi_res, whole))
-            self.low[axis] += whole
-            notches = int(self.low[axis] / 120)
-            if notches:
-                self.low[axis] -= notches * 120
-                events.append((EV_REL, axis, notches))
-        if events:
-            data = b"".join(EVENT.pack(0, 0, t, c, v) for t, c, v in events)
-            os.write(self.fd, data + EVENT.pack(0, 0, EV_SYN, SYN_REPORT, 0))
+        for slot, dx in ((0, -5.0), (1, 5.0)):
+            events += [(EV_ABS, ABS_MT_SLOT, slot),
+                       (EV_ABS, ABS_MT_POSITION_X, int((self.x + dx) * rx)),
+                       (EV_ABS, ABS_MT_POSITION_Y, int(self.y * ry))]
+        events += [(EV_ABS, ABS_X, int((self.x - 5.0) * rx)), (EV_ABS, ABS_Y, int(self.y * ry))]
+        return events
 
-    def reset(self):
-        self.rest = {REL_WHEEL: 0.0, REL_HWHEEL: 0.0}
-        self.low = {REL_WHEEL: 0, REL_HWHEEL: 0}
+    def touch(self):
+        self.x = self.y = 0.0
+        self.tracking = (self.tracking + 2) % 60000
+        events = []
+        for slot in (0, 1):
+            events += [(EV_ABS, ABS_MT_SLOT, slot), (EV_ABS, ABS_MT_TRACKING_ID, self.tracking + slot)]
+        events += self._fingers()
+        events += [(EV_KEY, BTN_TOUCH, 1), (EV_KEY, BTN_TOOL_DOUBLETAP, 1)]
+        self._emit(events)
+        self.active = True
+
+    def move(self, dx_mm, dy_mm):
+        self.x += dx_mm
+        self.y += dy_mm
+        self._emit(self._fingers())
+
+    def lift(self):
+        if not self.active:
+            return
+        events = []
+        for slot in (0, 1):
+            events += [(EV_ABS, ABS_MT_SLOT, slot), (EV_ABS, ABS_MT_TRACKING_ID, -1)]
+        events += [(EV_KEY, BTN_TOUCH, 0), (EV_KEY, BTN_TOOL_DOUBLETAP, 0)]
+        self._emit(events)
+        self.active = False
+
+
+def absinfo(fd, axis):
+    """(minimum, maximum, resolution) of an axis."""
+    data = fcntl.ioctl(fd, _ioc(2, "E", 0x40 + axis, 24), bytes(24))
+    _, lo, hi, _, _, res = struct.unpack("iiiiii", data)
+    return lo, hi, res if res > 0 else 1
 
 
 def hypr_json(*args):
@@ -209,14 +266,13 @@ def natural_scroll():
 def run(config, device_path):
     dev = os.open(device_path, os.O_RDONLY | os.O_NONBLOCK)
     res_x, res_y = resolution(dev, ABS_MT_POSITION_X), resolution(dev, ABS_MT_POSITION_Y)
-    wheel = VirtualWheel()
+    pad = VirtualTrackpad(dev)
 
     slots, slot = {}, 0            # slot -> [tracking_id, x, y]
     fingers = 0
     samples = deque(maxlen=256)    # (time, cx_mm, cy_mm) while two fingers scroll
     travel = 0.0                   # finger travel (mm) in this two-finger gesture
     velocity = None                # [vx, vy] in mm/s while momentum runs
-    natural = True                 # natural scrolling was on at the lift
     last_tick = 0.0
     buffer = b""
 
@@ -262,30 +318,33 @@ def run(config, device_path):
                             travel += ((cx - samples[-1][1]) ** 2 + (cy - samples[-1][2]) ** 2) ** 0.5
                         samples.append((now, cx, cy))
                     elif samples and fingers < 2:
-                        fling = start_momentum(config, samples, now, travel)
-                        velocity, natural = (fling[:2], fling[2]) if fling else (None, True)
+                        velocity = start_momentum(config, samples, now, travel)
+                        if velocity:
+                            pad.touch()
                         samples.clear()
                         travel = 0.0
                         last_tick = now
-                        wheel.reset()
+
+        # A real touch (or the end of the glide) lifts the virtual fingers.
+        if not velocity and pad.active:
+            pad.lift()
 
         if velocity and now - last_tick >= 0.004:
             dt = now - last_tick
             last_tick = now
             keep = config["deceleration"] ** (dt * 1000)
             velocity = [velocity[0] * keep, velocity[1] * keep]
-            speed = max(abs(velocity[0]), abs(velocity[1]))
-            if speed < config["stop_speed"]:
+            if max(abs(velocity[0]), abs(velocity[1])) < config["stop_speed"]:
                 velocity = None
+                pad.lift()
                 continue
-            scale = config["units_per_mm"] * config["speed"] * dt
-            # Continue the direction the content was moving.
-            sign = 1 if natural else -1
-            wheel.scroll(sign * velocity[1] * scale, -sign * velocity[0] * scale)
+            # The virtual fingers continue the way the real ones moved;
+            # Hyprland applies the scroll direction and speed settings.
+            pad.move(velocity[0] * config["speed"] * dt, velocity[1] * config["speed"] * dt)
 
 
 def start_momentum(config, samples, now, travel):
-    """[vx, vy, natural] at the lift (mm/s), or None when there is no fling."""
+    """[vx, vy] at the lift (mm/s), or None when there is no fling."""
     if travel < config["min_travel_mm"]:
         return None
     # Leave out the last moments before the lift: the contact shrinks and its
@@ -320,7 +379,7 @@ def start_momentum(config, samples, now, travel):
         vx, vy = vx * config["max_speed"] / speed, vy * config["max_speed"] / speed
     if not momentum_wanted(config):
         return None
-    return [vx, vy, natural_scroll()]
+    return [vx, vy]
 
 
 def main():
