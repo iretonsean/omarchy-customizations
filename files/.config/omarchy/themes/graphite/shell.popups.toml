@@ -1,0 +1,9 @@
+# Bar panels and the OSD: a Graphite panel (surface-1, no border).
+# omarchy-theme-set merges this into shell.toml as the [popups] section.
+[popups]
+background       = "#18181a"
+background-alpha = 1.0
+text             = "#e5e5e7"
+border           = "#18181a"
+border-alpha     = 0.0
+border-width     = 0

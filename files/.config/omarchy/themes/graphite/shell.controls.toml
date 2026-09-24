@@ -1,0 +1,24 @@
+# Buttons, pills and rows in shell panels. No outlines: tone separates them.
+# Normal is close to surface-2 (group); hover, focus and selected are close to
+# lift. The stock parts share one selected token for toggles, pills and rows,
+# so the Graphite panel clones add the accent where the brief puts it.
+# omarchy-theme-set merges this into shell.toml.
+[controls]
+normal-color        = "foreground"
+normal-fill-alpha   = 0.055
+normal-border-width = 0
+
+hover-cursor-color        = "foreground"
+hover-cursor-fill-alpha   = 0.115
+hover-cursor-border-width = 0
+
+focus-color        = "foreground"
+focus-fill-alpha   = 0.115
+focus-border-width = 0
+
+selected-color        = "foreground"
+selected-fill-alpha   = 0.115
+selected-border-width = 0
+
+pressed-fill-alpha   = 0.16
+selection-fill-alpha = 0.35

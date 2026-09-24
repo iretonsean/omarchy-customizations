@@ -1,0 +1,5 @@
+# Panel padding from the Graphite tokens (16px).
+[spacing]
+scale           = 1.0
+scale-with-font = true
+popup-padding   = 16
