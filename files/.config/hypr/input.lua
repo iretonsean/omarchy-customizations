@@ -70,3 +70,8 @@ hl.config({
 
 hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
 hl.gesture({ fingers = 4, direction = "pinchin", action = function() hl.exec_cmd("omarchy-menu toggle apps") end })
+
+-- Terminals scroll in whole lines. Omarchy uses speed 1.5 with 7 lines per
+-- step. foot now scrolls 1 line per step (~/.config/foot/foot.ini), and
+-- speed 10 (the maximum) keeps about the same pace with 7 times more steps.
+o.window("(Alacritty|kitty|foot)", { scroll_touchpad = 10 })
