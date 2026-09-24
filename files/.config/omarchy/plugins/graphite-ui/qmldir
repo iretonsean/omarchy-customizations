@@ -17,3 +17,5 @@ Value 1.0 Value.qml
 RoundedClip 1.0 RoundedClip.qml
 SpeedTestOverlay 1.0 SpeedTestOverlay.qml
 Keycap 1.0 Keycap.qml
+SearchField 1.0 SearchField.qml
+Chip 1.0 Chip.qml

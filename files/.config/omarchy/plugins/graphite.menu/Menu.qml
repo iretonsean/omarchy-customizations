@@ -7,6 +7,7 @@ import qs.Commons
 import qs.Ui
 import "../graphite-ui" as G
 import "MenuModel.js" as MenuModel
+import "Keybindings.js" as Bindings
 
 Item {
   id: root
@@ -104,7 +105,8 @@ Item {
   readonly property real rowReservedBorderRight: Border.right(selectedBorderSpec)
   readonly property int cornerRadius: Style.cornerRadius
   property int contentMargin: G.Tokens.padPanel
-  property int headerHeight: 24
+  // Keybindings: the title row, then the row of jump-to chips.
+  property int headerHeight: root.keysLayout ? 24 + 10 + 24 : 24
   property int contentSpacing: 12
   property int baseRowHeight: G.Tokens.rowNav
   property int detailRowHeight: 44
@@ -116,7 +118,7 @@ Item {
   property int dividerHeight: Style.space(17)
   property bool searchDivider: false
   property int layoutSerial: 0
-  property int cardWidth: Math.min(root.dmenuActive ? Style.space(root.dmenuWidth) : ((root.activeMenu === "trigger.capture.screenrecord" || root.activeMenu === "style.font") ? Style.space(520) : Style.space(300)), panel.width - Style.gapsOut * 2)
+  property int cardWidth: Math.min(root.keysLayout ? Style.space(Math.max(root.dmenuWidth, 900)) : root.dmenuActive ? Style.space(root.dmenuWidth) : ((root.activeMenu === "trigger.capture.screenrecord" || root.activeMenu === "style.font") ? Style.space(520) : Style.space(300)), panel.width - Style.gapsOut * 2)
   property int visibleRowsHeight: root.dmenuActive ? dmenuRowListHeight(layoutSerial, displayModel.count, filterText) : rowListHeight(layoutSerial, displayModel.count, filterText, searchDivider)
   property int cardHeight: root.dmenuActive
     ? Math.min(contentMargin * 2 + headerHeight + (mode === "input" ? 0 : contentSpacing + visibleRowsHeight), panel.height - Style.gapsOut * 2)
@@ -171,45 +173,40 @@ Item {
   // shows one keycap per key, in groups, in two columns.
   readonly property bool keysLayout: root.dmenuActive && root.dmenuColumnSeparator === " → "
     && String(root.dmenuPrompt).toLowerCase().indexOf("keybinding") >= 0
-  readonly property var bindingGroupOrder: ["Launch", "Design", "Windows", "Workspaces", "Other"]
+  // Groups, series and search live in Keybindings.js. The chips under the
+  // title jump to a section; Tab and Shift+Tab move to the next one.
+  readonly property var bindingSections: Bindings.sections
+  property int bindingTotal: 0
+  // Sections that have rows now (a search can empty some).
+  property var bindingSectionsShown: []
+  readonly property int currentBindingSection: root.keysLayout && root.layoutSerial >= 0 && root.cursorActive
+    ? Bindings.sectionOf(root.sectionAt(root.selectedIndex) || "") : -1
 
   function bindingParts(label) {
-    var at = label.indexOf(" → ")
-    if (at < 0) return { keys: [], name: label.trim() }
-    return { keys: root.keyNames(label.slice(0, at).trim()), name: label.slice(at + 3).trim() }
+    return Bindings.parts(label)
   }
 
-  // "SUPER SHIFT + RETURN" -> ["super", "⇧", "↵"]
-  function keyNames(combo) {
-    var words = {
-      "SUPER": "super", "SHIFT": "⇧", "CTRL": "ctrl", "CONTROL": "ctrl", "ALT": "alt",
-      "RETURN": "↵", "ENTER": "↵", "ESCAPE": "esc", "SPACE": "space", "TAB": "tab",
-      "BACKSPACE": "⌫", "DELETE": "del", "LEFT": "←", "RIGHT": "→", "UP": "↑", "DOWN": "↓",
-      "PRINT": "print", "HOME": "home", "END": "end", "COMMA": ",", "PERIOD": ".",
-      "SLASH": "/", "MINUS": "-", "EQUAL": "=", "GRAVE": "`", "BACKSLASH": "\\",
-      "BRACKETLEFT": "[", "BRACKETRIGHT": "]", "SEMICOLON": ";", "APOSTROPHE": "'"
+  function jumpToSection(s) {
+    if (s < 0 || s >= root.bindingSections.length) return
+    var groups = root.bindingSections[s].groups
+    for (var i = 0; i < displayModel.count; i++) {
+      if (groups.indexOf(displayModel.get(i).section) < 0) continue
+      root.disarmPointer()
+      root.cursorActive = true
+      root.selectedIndex = i
+      var view = root.columnAt(i) === 1 ? rightList : resultList
+      view.positionViewAtIndex(i, ListView.Beginning)
+      return
     }
-    var halves = combo.split(" + ")
-    var mods = halves.length > 1 ? halves[0].split(/\s+/) : []
-    var key = halves.length > 1 ? halves.slice(1).join(" + ") : halves[0]
-    var out = []
-    for (var i = 0; i < mods.length; i++) if (mods[i]) out.push(words[mods[i].toUpperCase()] || mods[i].toLowerCase())
-    var k = key.trim()
-    var upper = k.toUpperCase()
-    if (words[upper]) out.push(words[upper])
-    else if (/^XF86/i.test(k)) out.push(k.replace(/^XF86/i, "").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase())
-    else if (/^code:/i.test(k)) out.push(k.toLowerCase())
-    else out.push(k.toLowerCase())
-    return out
   }
 
-  function bindingGroup(name) {
-    var n = name.toLowerCase()
-    if (/workspace/.test(n)) return "Workspaces"
-    if (/figma|paper|claude design|color picker|screenshot|screen ?record|ocr|capture|share/.test(n)) return "Design"
-    if (/window|full ?screen|full width|float|tiling|tile|focus|group|pseudo|split|resize|swap|move|close|pin|scratchpad|opacity|gaps|zoom|layout/.test(n)) return "Windows"
-    if (/menu|launcher|terminal|browser|file manager|claude|t3|app|editor|music|chat|messages|messenger|password|obsidian|calendar|mail|keybindings|btop|activity|docker|notes|web|figma|projects/.test(n)) return "Launch"
-    return "Other"
+  // Next or previous section that has rows, from the cursor's section.
+  function jumpBy(delta) {
+    var shown = root.bindingSectionsShown
+    if (shown.length === 0) return
+    var at = shown.indexOf(root.currentBindingSection)
+    var next = at < 0 ? (delta > 0 ? 0 : shown.length - 1) : (at + delta + shown.length) % shown.length
+    root.jumpToSection(shown[next])
   }
 
   // Default groups for the top level. A menu item can set its own with a
@@ -321,7 +318,7 @@ Item {
     if (displayModel.count === 0) return root.baseRowHeight
 
     var available = availableRowsHeight()
-    if (root.dmenuMaxHeight > 0) available = Math.min(available, Style.space(root.dmenuMaxHeight))
+    if (root.dmenuMaxHeight > 0 && !root.keysLayout) available = Math.min(available, Style.space(root.dmenuMaxHeight))
 
     var columns = [[], []]
     var sums = [0, 0]
@@ -648,7 +645,9 @@ Item {
       var icon = parts.length > 1 ? parts.shift() : ""
       var label = parts.shift() || ""
       var detail = parts.join("\t")
-      if (query && label.toLowerCase().indexOf(query) < 0
+      if (root.keysLayout) {
+        if (!Bindings.matches(label, query)) continue
+      } else if (query && label.toLowerCase().indexOf(query) < 0
           && detail.toLowerCase().indexOf(query) < 0) continue
       built.push({
         itemId: "dmenu." + i,
@@ -665,23 +664,39 @@ Item {
         action: "",
         provider: "",
         score: i,
-        section: root.keysLayout ? root.bindingGroup(root.bindingParts(label).name) : "",
+        section: root.keysLayout ? Bindings.group(root.bindingParts(label).name, root.bindingParts(label).combo) : "",
         column: 0
       })
     }
 
     if (root.keysLayout) {
+      if (!query) root.bindingTotal = built.length
+      built = Bindings.numberOrder(built)
+      // Without a search, a series (workspaces 1 to 10, the four arrows)
+      // is one row. A search shows each binding, so it can be picked.
+      if (!query) {
+        built = Bindings.collapse(built)
+        for (var e = 0; e < built.length; e++) {
+          if (built[e].series) built[e].itemId = "dmenu.series." + e
+          delete built[e].series
+        }
+      }
       // Groups in a fixed order, split across two columns of about equal
       // height: the left column takes groups until it holds half the rows.
       var ordered = []
       var counts = {}
-      for (var g = 0; g < root.bindingGroupOrder.length; g++) {
-        var name = root.bindingGroupOrder[g]
+      var groupOrder = Bindings.groupOrder()
+      var shown = []
+      for (var g = 0; g < groupOrder.length; g++) {
+        var name = groupOrder[g]
         counts[name] = 0
         for (var r = 0; r < built.length; r++) {
           if (built[r].section === name) { ordered.push(built[r]); counts[name] += 1 }
         }
+        var sec = Bindings.sectionOf(name)
+        if (counts[name] > 0 && shown.indexOf(sec) < 0) shown.push(sec)
       }
+      root.bindingSectionsShown = shown
       var half = ordered.length / 2
       var left = 0
       var column = 0
@@ -875,6 +890,11 @@ Item {
       }
       if (index < 0 || index >= displayModel.count) return
       var picked = displayModel.get(index)
+      // A series row runs nothing: it searches for its members instead.
+      if (String(picked.itemId).indexOf("dmenu.series.") === 0) {
+        root.setFilter(root.bindingParts(picked.label).name)
+        return
+      }
       root.applyDmenuSelection(picked.detail ? picked.label + "\t" + picked.detail : picked.label)
       return
     }
@@ -1298,6 +1318,9 @@ Item {
           if (event.key === Qt.Key_Delete) {
             root.requestDeleteSelected()
             event.accepted = true
+          } else if (root.keysLayout && (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab)) {
+            root.jumpBy(event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier) ? -1 : 1)
+            event.accepted = true
           } else if (event.key === Qt.Key_Escape) {
             if (root.filterText) root.setFilter("")
             else root.cancel()
@@ -1362,17 +1385,47 @@ Item {
         spacing: root.contentSpacing
 
         // Title row: the menu's title (or what you type) and a mono meta.
+        // Keybindings: the title, a search field and the count, then a row
+        // of jump-to chips.
         Item {
           width: parent.width
           height: root.headerHeight
+
+          G.SearchField {
+            visible: root.keysLayout
+            anchors.right: headerMeta.left
+            anchors.rightMargin: 12
+            y: 0
+            width: 280
+            text: root.filterText
+            placeholder: "Search bindings or keys"
+          }
+
+          Row {
+            visible: root.keysLayout
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            spacing: 4
+            Repeater {
+              model: root.keysLayout ? root.bindingSections : []
+              G.Chip {
+                required property var modelData
+                required property int index
+                text: modelData.chip
+                current: index === root.currentBindingSection
+                enabled: root.layoutSerial >= 0 && root.bindingSectionsShown.indexOf(index) >= 0
+                onClicked: root.jumpToSection(index)
+              }
+            }
+          }
 
           G.PanelTitle {
             anchors.left: parent.left
             anchors.leftMargin: 4
             anchors.right: headerMeta.left
             anchors.rightMargin: 12
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.filterText
+            y: (24 - height) / 2
+            text: (root.keysLayout ? "" : root.filterText)
               || (root.dmenuActive ? root.dmenuPrompt
               : (root.activeMenu === "root" ? "Omarchy"
               : (root.item(root.activeMenu) ? (root.item(root.activeMenu).title || root.item(root.activeMenu).label) : "Omarchy")))
@@ -1383,11 +1436,12 @@ Item {
             id: headerMeta
             anchors.right: parent.right
             anchors.rightMargin: 4
-            anchors.verticalCenter: parent.verticalCenter
+            y: (24 - height) / 2
             text: {
               var n = displayModel.count
               if (root.filterText) return n === 1 ? "1 result" : n + " results"
-              if (root.dmenuActive) return root.dmenuPrompt === "Keybindings" ? n + " bindings" : String(n)
+              if (root.keysLayout) return root.bindingTotal + " bindings"
+              if (root.dmenuActive) return String(n)
               if (root.activeMenu === "root") return "super space"
               return n === 1 ? "1 item" : n + " items"
             }
