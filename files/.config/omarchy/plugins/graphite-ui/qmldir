@@ -15,3 +15,4 @@ PanelTitle 1.0 PanelTitle.qml
 StatusText 1.0 StatusText.qml
 Value 1.0 Value.qml
 RoundedClip 1.0 RoundedClip.qml
+SpeedTestOverlay 1.0 SpeedTestOverlay.qml
