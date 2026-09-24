@@ -29,12 +29,12 @@ DEVICES = ["AirPods Pro", "MX Keys", "MX Master 3S", "Studio Speaker", "Desk Lam
 def demo_fn(names):
     return """
   // DEMO MODE (docs/screenshots/demo/demo-mode): made-up names.
-  property var demoMap: ({})
-  property int demoNext: 0
+  // The counter lives in the map: changing it must not re-run bindings.
+  property var demoMap: ({ "": 0 })
   function demoName(real) {
     var key = String(real || "")
     if (key === "") return key
-    if (root.demoMap[key] === undefined) { root.demoMap[key] = root.demoNext; root.demoNext += 1 }
+    if (root.demoMap[key] === undefined) { root.demoMap[key] = root.demoMap[""]; root.demoMap[""] += 1 }
     var names = %s
     return names[root.demoMap[key] %% names.length]
   }

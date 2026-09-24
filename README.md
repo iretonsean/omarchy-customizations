@@ -113,7 +113,7 @@ The theme's color tokens are in `colors.toml`. Templates in `files/.config/omarc
 
 Omarchy 4 draws the bar, the menus, the panels and the overlays in one Quickshell process. This repo has Graphite copies of those plugins (`files/.config/omarchy/plugins/graphite.*`). They use shared parts from `plugins/graphite-ui/`: group, label, value field, button, switch, slider, keycap, chip, search field and more. `install.sh` turns them on. Omarchy's own files are not changed.
 
-The screenshots show made-up data. `docs/screenshots/demo/demo-mode on` makes the panels show made-up network names, devices, addresses and a made-up Wi-Fi QR code. `demo-mode off` restores them.
+"Before" images show Omarchy as installed: the Tokyo Night theme, the JetBrainsMono Nerd Font and Omarchy's own plugins. All screenshots show made-up data. In `docs/screenshots/demo/`, `demo-mode on` makes the Graphite panels show made-up network names, devices, addresses and a made-up Wi-Fi QR code, and `vanilla-mode on` does the same for Omarchy's own panels. `off` restores your setup.
 
 ### Menu and keybindings
 
@@ -123,9 +123,19 @@ The Omarchy menu has named groups (Go to, Configure, System). The Keybindings vi
 |---|---|
 | ![Omarchy menu before](docs/screenshots/menu-before.png) | ![Omarchy menu with Graphite groups](docs/screenshots/menu-after.png) |
 
+Keybindings, before:
+
+![Omarchy Keybindings menu](docs/screenshots/keybindings-view-before.png)
+
+Keybindings, after:
+
 ![Keybindings view with sections, chips and keycaps](docs/screenshots/keybindings-groups.png)
 
-![Keybindings search for "workspace 3"](docs/screenshots/keybindings-search.png)
+Search for "workspace 3", before and after:
+
+![Omarchy Keybindings search](docs/screenshots/keybindings-search-before.png)
+
+![Graphite Keybindings search](docs/screenshots/keybindings-search.png)
 
 ### Bar panels
 
@@ -141,9 +151,11 @@ Wi-Fi, Bluetooth, Audio, Display and Claude Code. One click on another bar icon 
 
 ### Speed tests and Wi-Fi sharing
 
-| Internet speed | Disk speed | Wi-Fi QR code |
+| | Before | After |
 |---|---|---|
-| ![Internet speed test](docs/screenshots/speedtest-after.png) | ![Disk speed test](docs/screenshots/disk-speedtest-after.png) | ![Wi-Fi QR code](docs/screenshots/wifiqr-after.png) |
+| Internet speed | ![Internet speed test before](docs/screenshots/speedtest-before.png) | ![Internet speed test after](docs/screenshots/speedtest-after.png) |
+| Disk speed | ![Disk speed test before](docs/screenshots/disk-speedtest-before.png) | ![Disk speed test after](docs/screenshots/disk-speedtest-after.png) |
+| Wi-Fi QR code | ![Wi-Fi QR code before](docs/screenshots/wifiqr-before.png) | ![Wi-Fi QR code after](docs/screenshots/wifiqr-after.png) |
 
 ### Files
 
@@ -156,11 +168,11 @@ Graphite styles for the Files app (Nautilus) in `files/.config/gtk-4.0/gtk.css`.
 
 ### Workspace guide
 
-The guide page (`files/.local/share/workspace-guide/index.html`) is also the component sheet.
+The guide page (`files/.local/share/workspace-guide/index.html`) is also the component sheet. Omarchy has no guide page, so there is no "before" image.
 
-| Before | After |
-|---|---|
-| ![Guide before](docs/screenshots/guide-before.png) | ![Guide after](docs/screenshots/guide-after.png) |
+![Workspace guide](docs/screenshots/guide-after.png)
+
+[The full guide page](docs/screenshots/guide-after-full.png)
 
 ### Cursor
 
@@ -168,11 +180,9 @@ The pre-Tahoe macOS cursor theme (`apple_cursor` package), set in `files/.config
 
 ### Dock
 
-A Graphite plugin in the Omarchy shell (`files/.config/omarchy/plugins/graphite.dock/`) at the bottom of the screen. It hides until the pointer reaches the bottom edge. Right-click an icon to pin or unpin it, add or remove a gap, or empty the trash. It replaces `nwg-dock-hyprland`, which drew blurry and missing icons. The base pins are still in `files/.config/nwg-dock-hyprland/pinned`, and `projects-apply` adds your project sites. To go back to `nwg-dock-hyprland`, run `omarchy plugin disable graphite.dock`, then `dock-start`.
+A Graphite plugin in the Omarchy shell (`files/.config/omarchy/plugins/graphite.dock/`) at the bottom of the screen. It hides until the pointer reaches the bottom edge. Right-click an icon to pin or unpin it, add or remove a gap, or empty the trash. Omarchy has no dock, so there is no "before" image. The Graphite dock replaces `nwg-dock-hyprland`, which drew blurry and missing icons. The base pins are still in `files/.config/nwg-dock-hyprland/pinned`, and `projects-apply` adds your project sites. To go back to `nwg-dock-hyprland`, run `omarchy plugin disable graphite.dock`, then `dock-start`.
 
-| Before | After |
-|---|---|
-| ![nwg-dock before](docs/screenshots/dock-before.png) | ![Graphite dock](docs/screenshots/dock-after.png) |
+![Graphite dock](docs/screenshots/dock-after.png)
 
 ### Display
 

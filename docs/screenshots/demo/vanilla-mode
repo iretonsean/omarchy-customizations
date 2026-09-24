@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""Vanilla mode, for the "before" screenshots of the public repo.
+
+  vanilla-mode on    show Omarchy as installed, with made-up data
+  vanilla-mode off   restore this repo's setup
+
+"on" saves shell.json, the theme name and the files that `omarchy-font-set`
+changes, into ~/.cache/omarchy-vanilla-mode/. Then it sets Omarchy's
+default theme (Tokyo Night) and font (JetBrainsMono Nerd Font), and puts
+Omarchy's own plugins in the bar. The Wi-Fi, Bluetooth, Claude Code, speed
+test and Wi-Fi QR panels run as copies of Omarchy's code (vanilla.* ids)
+with the same made-up data as demo-mode. Omarchy's own files do not change.
+
+The Graphite theme sets OMARCHY_MENU_FONT (SF Pro) in Hyprland's
+environment, and a theme change does not clear it. The shell starts from
+Hyprland, so "on" sets it to "" there (the menu then uses Omarchy's font)
+and "off" sets it again.
+
+"off" puts everything back from the saved copies and removes the copies.
+The Files app keeps the repo's gtk.css; move it aside for a Files capture.
+"""
+import json, os, shutil, subprocess, sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+import importlib.machinery, importlib.util
+_loader = importlib.machinery.SourceFileLoader("demo_mode", os.path.join(HERE, "demo-mode"))
+demo = importlib.util.module_from_spec(importlib.util.spec_from_loader("demo_mode", _loader))
+_loader.exec_module(demo)
+
+HOME = os.path.expanduser("~")
+STOCK = "/usr/share/omarchy/shell/plugins"
+PLUGINS = os.path.join(HOME, ".config/omarchy/plugins")
+SHELL_JSON = os.path.join(HOME, ".config/omarchy/shell.json")
+SAVE = os.path.join(HOME, ".cache/omarchy-vanilla-mode")
+FONT_FILES = [".config/alacritty/alacritty.toml", ".config/kitty/kitty.conf", ".config/ghostty/config",
+              ".config/foot/foot.ini", ".config/fontconfig/fonts.conf"]
+DEFAULT_THEME = "Tokyo Night"
+DEFAULT_FONT = "JetBrainsMono Nerd Font"
+
+# Copies of Omarchy's own panels, with the made-up data of demo-mode.
+COPIES = {
+    "network": ("panels/network", [
+        ("  property var info: ({})", "  property var info: ({})" + demo.demo_fn(demo.NETWORKS)),
+        ('return root.info.ssid || "Wi-Fi"', 'return root.demoName(root.info.ssid) || "Wi-Fi"'),
+        ('text: root.info.ip || "--"', 'text: root.info.ip ? "10.0.0.24" : "--"'),
+        ('text: root.info.gateway || "--"', 'text: root.info.gateway ? "10.0.0.1" : "--"'),
+        ('text: row.net ? (row.net.ssid || "Hidden") : ""', 'text: row.net ? (root.demoName(row.net.ssid) || "Hidden") : ""'),
+    ]),
+    "bluetooth": ("panels/bluetooth", [
+        ("  function deviceLabel(device) {\n    return Model.deviceLabel(device)",
+         demo.demo_fn(demo.DEVICES) + "  function deviceLabel(device) {\n    return root.demoName(Model.deviceLabel(device))"),
+    ]),
+    "agents": ("agents", [
+        ("meta: root.heroMeta(root.provider)", 'meta: root.heroMeta(root.provider) ? "Pro" : ""'),
+    ]),
+    "speedtest": ("panels/speedtest", [
+        ('root.connectionName = fields[1] || "Wi-Fi"', 'root.connectionName = "Studio Wi-Fi"'),
+        ("root.connectionName = String(payload.connection)", 'root.connectionName = payload.connection ? "Studio Wi-Fi" : ""'),
+    ]),
+    "wifiqr": ("panels/wifiqr", [
+        ('? ["omarchy-network-qr", "--meta", requestedIface]\n      : ["omarchy-network-qr", "--meta"]',
+         '? ["%s"]\n      : ["%s"]' % (os.path.join(HERE, "demo-qr"), os.path.join(HERE, "demo-qr"))),
+    ]),
+}
+
+def run(*cmd):
+    subprocess.run(cmd, check=True)
+
+def session_env(name):
+    out = subprocess.run(["systemctl", "--user", "show-environment"], capture_output=True, text=True).stdout
+    for line in out.splitlines():
+        if line.startswith(name + "="):
+            value = line[len(name) + 1:]
+            if value.startswith("$'") and value.endswith("'"): value = value[2:-1]
+            return value
+    return None
+
+def current_theme():
+    return subprocess.run(["omarchy-theme-current"], capture_output=True, text=True).stdout.strip()
+
+def make_copy(name, src, edits):
+    dst = os.path.join(PLUGINS, "vanilla." + name)
+    shutil.rmtree(dst, ignore_errors=True)
+    shutil.copytree(os.path.join(STOCK, src), dst)
+    manifest_path = os.path.join(dst, "manifest.json")
+    manifest = json.load(open(manifest_path))
+    manifest["id"] = "vanilla." + name
+    manifest.setdefault("omarchy", {})["clonedFrom"] = "omarchy." + name
+    json.dump(manifest, open(manifest_path, "w"), indent=2)
+    applied = set()
+    for rel in os.listdir(dst):
+        path = os.path.join(dst, rel)
+        if not rel.endswith(".qml"): continue
+        text = open(path).read()
+        for old, new in edits:
+            if old in text:
+                if text.count(old) != 1: sys.exit("vanilla-mode: patch does not fit %s: %r" % (rel, old[:60]))
+                text = text.replace(old, new)
+                applied.add(old)
+        open(path, "w").write(text)
+    for old, _ in edits:
+        if old not in applied: sys.exit("vanilla-mode: patch not found in %s: %r" % (name, old[:60]))
+
+def vanilla_shell(config):
+    # The bar with Omarchy's own plugins, and the copies in place of the
+    # panels that show personal data. Clones of this repo are turned off.
+    swap = {"graphite.menu": "omarchy.menu", "graphite.audio": "omarchy.audio", "graphite.monitor": "omarchy.monitor",
+            "graphite.network": "vanilla.network", "graphite.bluetooth": "vanilla.bluetooth", "graphite.agents": "vanilla.agents"}
+    for side in config["bar"]["layout"].values():
+        for entry in side:
+            entry["id"] = swap.get(entry["id"], entry["id"])
+    config["plugins"] = [{"id": "vanilla.speedtest"}, {"id": "vanilla.wifiqr"}]
+    config["disabledPlugins"] = ["omarchy.network", "omarchy.bluetooth", "omarchy.agents", "omarchy.speedtest", "omarchy.wifiqr"]
+    config["cloneSourceRestores"] = []
+    return config
+
+def on():
+    if os.path.exists(SAVE): sys.exit("vanilla-mode: already on (run off first)")
+    os.makedirs(SAVE)
+    shutil.copy2(SHELL_JSON, os.path.join(SAVE, "shell.json"))
+    open(os.path.join(SAVE, "theme"), "w").write(current_theme())
+    menu_font = session_env("OMARCHY_MENU_FONT")
+    if menu_font is not None:
+        open(os.path.join(SAVE, "menu-font"), "w").write(menu_font)
+        run("hyprctl", "eval", 'hl.env("OMARCHY_MENU_FONT", "")')
+    for rel in FONT_FILES:
+        src = os.path.join(HOME, rel)
+        if os.path.exists(src):
+            os.makedirs(os.path.dirname(os.path.join(SAVE, "files", rel)), exist_ok=True)
+            shutil.copy2(src, os.path.join(SAVE, "files", rel))
+    for name, (src, edits) in COPIES.items(): make_copy(name, src, edits)
+    config = vanilla_shell(json.load(open(SHELL_JSON)))
+    json.dump(config, open(SHELL_JSON, "w"), indent=2)
+    run("omarchy-theme-set", DEFAULT_THEME)
+    run("omarchy-font-set", DEFAULT_FONT)
+    run("omarchy", "restart", "shell")
+
+def off():
+    if not os.path.exists(SAVE): sys.exit("vanilla-mode: not on")
+    shutil.copy2(os.path.join(SAVE, "shell.json"), SHELL_JSON)
+    for name in COPIES: shutil.rmtree(os.path.join(PLUGINS, "vanilla." + name), ignore_errors=True)
+    run("omarchy-theme-set", open(os.path.join(SAVE, "theme")).read().strip())
+    for rel in FONT_FILES:
+        saved = os.path.join(SAVE, "files", rel)
+        if os.path.exists(saved): shutil.copy2(saved, os.path.join(HOME, rel))
+        elif os.path.exists(os.path.join(HOME, rel)): os.remove(os.path.join(HOME, rel))
+    run("fc-cache", "-f")
+    menu_font = os.path.join(SAVE, "menu-font")
+    if os.path.exists(menu_font):
+        run("hyprctl", "eval", 'hl.env("OMARCHY_MENU_FONT", %s)' % json.dumps(open(menu_font).read()))
+    run("omarchy", "restart", "shell")
+    shutil.rmtree(SAVE)
+
+if __name__ == "__main__":
+    mode = sys.argv[1] if len(sys.argv) > 1 else ""
+    if mode == "on": on()
+    elif mode == "off": off()
+    else: sys.exit(__doc__)
+    print("vanilla mode " + mode)
