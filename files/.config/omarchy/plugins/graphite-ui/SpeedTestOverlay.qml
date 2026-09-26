@@ -180,7 +180,7 @@ PanelWindow {
           horizontalPadding: 14
           Layout.alignment: Qt.AlignHCenter
           onClicked: root.runAgainRequested()
-          Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+          Behavior on opacity { NumberAnimation { duration: Tokens.swapIn * Tokens.motion; easing.type: Easing.OutCubic } }
         }
       }
     }
@@ -197,12 +197,17 @@ PanelWindow {
 
     // A gauge that is not measuring yet stays quiet until it has a figure.
     readonly property bool engaged: live || value > 0
-    property real shown: 0
+    // The arc follows the reading on a spring: readings arrive several
+    // times a second, and each one retargets without losing speed.
+    readonly property real shown: Math.max(0, reading.value)
     readonly property real fraction: root.fullScale > 0 ? Math.max(0, Math.min(1, shown / root.fullScale)) : 0
 
-    Behavior on shown { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
-    onValueChanged: shown = value
-    Component.onCompleted: shown = value
+    Spring {
+      id: reading
+      target: group.value
+      response: 0.45
+      damping: 1
+    }
 
     width: 232
     height: column.implicitHeight + Tokens.padGroup * 2

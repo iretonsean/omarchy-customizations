@@ -50,7 +50,7 @@ Item {
     radius: 5
     color: root.checked ? Tokens.accent : Tokens.surface3
     clip: true
-    Behavior on color { ColorAnimation { duration: 120 } }
+    Behavior on color { ColorAnimation { duration: 120 * Tokens.motion } }
 
     // Off: inner shadow along the top. On: 1px top highlight.
     Rectangle {
@@ -70,15 +70,31 @@ Item {
       color: Qt.rgba(0, 0, 0, 0.4)
     }
 
+    // The knob's two edges ride different springs: the edge in front
+    // leads, so the knob stretches on the way across and settles 16 wide.
+    Spring {
+      id: knobLeft
+      target: root.checked ? track.width - 18 : 2
+      damping: Tokens.edgeDamping
+      riseResponse: Tokens.trailResponse
+      fallResponse: Tokens.leadResponse
+    }
+    Spring {
+      id: knobRight
+      target: root.checked ? track.width - 2 : 18
+      damping: Tokens.edgeDamping
+      riseResponse: Tokens.leadResponse
+      fallResponse: Tokens.trailResponse
+    }
+
     Rectangle {
       id: knob
-      width: 16
       height: 14
       radius: 3
       y: 2
-      x: root.checked ? track.width - width - 2 : 2
+      x: knobLeft.value
+      width: Math.max(14, knobRight.value - knobLeft.value)
       color: root.checked ? "#ffffff" : "#c7c7cc"
-      Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
     }
   }
 

@@ -401,6 +401,90 @@ PanelWindow {
 
   // --- card ----------------------------------------------------------------
 
+  // Motion (docs/theme-direction.md, Motion). The card opens on the move
+  // spring (a fade and a scale from 0.98, from the bar side) and closes on
+  // snap. Its place and size follow the content on the move spring. When
+  // this panel replaces another one (a click on another bar icon), the card
+  // starts where the other card was and morphs into place, and the content
+  // swaps in with a short blur.
+  Spring {
+    id: presence
+    target: root.open ? 1 : 0
+    riseResponse: Tokens.moveResponse
+    fallResponse: Tokens.snapResponse
+  }
+  // Closing because another panel takes over: the card stays whole until
+  // the new card is on screen (its window maps a frame later), then goes.
+  property bool _handingOver: false
+  Timer {
+    id: handOverTimer
+    interval: 80
+    onTriggered: {
+      root._handingOver = false
+      presence.jump(0)
+    }
+  }
+  readonly property bool _placing: presence.value < 0.3 && !root._morphing
+  property bool _morphing: false
+  Spring { id: cardX; target: root.cardOrigin.x; instant: root._placing }
+  Spring { id: cardY; target: root.cardOrigin.y; instant: root._placing }
+  Spring { id: cardW; target: root.contentWidth; instant: root._placing }
+  Spring { id: cardH; target: root.contentHeight; instant: root._placing }
+
+  Timer {
+    id: morphTimer
+    interval: 600
+    onTriggered: root._morphing = false
+  }
+
+  function _startMorph() {
+    var from = MotionState.panelRect
+    var sameScreen = root.screen && MotionState.panelScreen === root.screen.name
+    if (!sameScreen || from.width <= 0 || Tokens.motion <= 0) return false
+    root._morphing = true
+    morphTimer.restart()
+    MotionState.takeoverSerial += 1
+    presence.jump(1)
+    cardX.launchFrom(from.x)
+    cardY.launchFrom(from.y)
+    cardW.launchFrom(from.width)
+    cardH.launchFrom(from.height)
+    swapAnim.restart()
+    return true
+  }
+
+  // Keep this card's place in MotionState while it is open.
+  readonly property rect _liveRect: Qt.rect(card.x, card.y, card.width, card.height)
+  function _publishRect() {
+    if (!root.open || !root.screen || presence.value < 0.5) return
+    MotionState.panelRect = root._liveRect
+    MotionState.panelScreen = root.screen.name
+  }
+  on_LiveRectChanged: root._publishRect()
+
+  Connections {
+    target: root
+    function onOpenChanged() {
+      // popoutSwitching is set by the handler above when another panel of
+      // this bar was open; read the other card's place before publishing.
+      if (root.open && root.popoutSwitching) root._startMorph()
+      if (!root.open) {
+        // The panel that replaces this one opens in the same turn of the
+        // event loop, right after this close.
+        var serial = MotionState.takeoverSerial
+        Qt.callLater(function() {
+              if (!root.open && MotionState.takeoverSerial !== serial) {
+            root._handingOver = true
+            handOverTimer.restart()
+          }
+        })
+      } else {
+        handOverTimer.stop()
+        root._handingOver = false
+      }
+    }
+  }
+
   RectangularShadow {
     anchors.fill: card
     radius: Tokens.radiusPanel
@@ -408,18 +492,23 @@ PanelWindow {
     blur: 48
     color: Qt.rgba(0, 0, 0, 0.55)
     opacity: card.opacity
+    scale: card.scale
+    transformOrigin: card.transformOrigin
   }
 
   BorderSurface {
     id: card
-    x: root.cardOrigin.x
-    y: root.cardOrigin.y
-    width: root.contentWidth
-    height: root.contentHeight
+    x: cardX.value
+    y: cardY.value
+    width: cardW.value
+    height: cardH.value
     color: Tokens.surface1
     borderSpec: root.borderSpec
     padding: root.padding
     radius: Tokens.radiusPanel
+    // The content keeps its final size while the card morphs; the card
+    // shows the part that fits.
+    clip: true
 
     Rectangle {
       anchors { top: parent.top; left: parent.left; right: parent.right; leftMargin: Tokens.radiusPanel; rightMargin: Tokens.radiusPanel }
@@ -427,12 +516,12 @@ PanelWindow {
       color: Tokens.highlight
       z: 1
     }
-    opacity: root.open || root.popoutSwitching ? 1.0 : 0
-
-    Behavior on opacity {
-      enabled: !root.popoutSwitching && !root.popoutSwitchClosing
-      NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
-    }
+    opacity: root._handingOver ? 1 : Math.min(1, presence.value)
+    scale: root._handingOver ? 1 : 0.98 + 0.02 * presence.value
+    transformOrigin: root.barPos === "bottom" ? Item.Bottom
+      : root.barPos === "left" ? Item.Left
+      : root.barPos === "right" ? Item.Right
+      : Item.Top
 
     // Swallow clicks on the card so they don't bubble to the dismissal
     // MouseArea behind us.
@@ -443,16 +532,29 @@ PanelWindow {
 
     Item {
       id: contentHolder
-      anchors.fill: parent
-      anchors.topMargin: card.contentTopInset
-      anchors.rightMargin: card.contentRightInset
-      anchors.bottomMargin: card.contentBottomInset
-      anchors.leftMargin: card.contentLeftInset
-      opacity: root.popoutSwitching ? (root.open ? 1.0 : 0) : 1.0
+      x: card.contentLeftInset
+      y: card.contentTopInset
+      width: Math.max(0, root.contentWidth - card.contentLeftInset - card.contentRightInset)
+      height: Math.max(0, root.contentHeight - card.contentTopInset - card.contentBottomInset)
 
-      Behavior on opacity {
-        enabled: root.popoutSwitching
-        NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+      // 0 → 1 as content swaps in after a morph from another panel.
+      property real swap: 1
+      opacity: swap
+      layer.enabled: swap < 1
+      layer.effect: MultiEffect {
+        blurEnabled: true
+        blurMax: 16
+        blur: (1 - contentHolder.swap) * Tokens.swapBlur / 16
+      }
+
+      NumberAnimation {
+        id: swapAnim
+        target: contentHolder
+        property: "swap"
+        from: 0
+        to: 1
+        duration: Tokens.swapIn * Tokens.motion
+        easing.type: Easing.OutCubic
       }
     }
   }

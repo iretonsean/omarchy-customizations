@@ -3,6 +3,7 @@ import QtQuick.Effects
 import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
+import "../graphite-ui" as G
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import qs.Commons
@@ -396,17 +397,21 @@ Item {
                 width: isSpacer ? root.spacerWidth : root.tileSize
                 height: root.tileSize
 
-                // Lift: where the pointer is.
-                Rectangle {
-                  visible: !tile.isSpacer && tile.hot
+                // A click dips the tile and springs it back.
+                scale: pressSpring.value
+                G.Spring {
+                  id: pressSpring
+                  target: mouse.pressed && !tile.isSpacer ? 0.9 : 1
+                  response: G.Tokens.snapResponse
+                  damping: G.Tokens.moveDamping
+                }
+
+                // Lift: where the pointer is. It glides from tile to tile.
+                G.CursorSurface {
                   anchors.fill: parent
                   radius: root.tileRadius
-                  color: root.lift
-                  Rectangle {
-                    anchors { top: parent.top; left: parent.left; right: parent.right; leftMargin: root.tileRadius; rightMargin: root.tileRadius }
-                    height: 1
-                    color: root.highlight
-                  }
+                  fill: root.lift
+                  hasCursor: !tile.isSpacer && tile.hot
                 }
 
                 Image {
@@ -481,26 +486,65 @@ Item {
           }
         }
 
-        // Name of the item under the pointer.
+        // Name of the item under the pointer. One label glides from icon to
+        // icon (place and width on the move spring) and its name swaps in;
+        // leaving the dock, it fades out with the last name.
         Rectangle {
           id: nameLabel
-          visible: perScreen.hoverTile !== null && perScreen.menuItem === null
-          readonly property point at: perScreen.hoverTile
-            ? perScreen.hoverTile.mapToItem(dockWindow.contentItem, perScreen.hoverTile.width / 2, 0)
+          readonly property bool wanted: perScreen.hoverTile !== null && perScreen.menuItem === null
+          property Item lastTile: null
+          property string lastName: ""
+          readonly property Item tileNow: perScreen.hoverTile
+          onTileNowChanged: if (tileNow) lastTile = tileNow
+          readonly property string nameNow: perScreen.hoverItem ? (perScreen.hoverItem.name || "") : ""
+          onNameNowChanged: {
+            if (!nameNow) return
+            var swapping = lastName !== "" && labelFade.value > 0.05
+            lastName = nameNow
+            if (swapping) nameSwap.restart()
+          }
+          readonly property point at: lastTile
+            ? lastTile.mapToItem(dockWindow.contentItem, lastTile.width / 2, 0)
             : Qt.point(0, 0)
-          x: Math.max(4, Math.min(dockWindow.width - width - 4, at.x - width / 2))
+          readonly property real targetW: nameText.implicitWidth + 16
+
+          G.Spring {
+            id: labelFade
+            target: nameLabel.wanted ? 1 : 0
+            response: G.Tokens.snapResponse
+            damping: G.Tokens.snapDamping
+          }
+          readonly property bool placing: labelFade.value < 0.05
+          G.Spring { id: labelW; target: nameLabel.targetW; instant: nameLabel.placing }
+          G.Spring {
+            id: labelX
+            target: Math.max(4, Math.min(dockWindow.width - nameLabel.targetW - 4, nameLabel.at.x - nameLabel.targetW / 2))
+            instant: nameLabel.placing
+          }
+
+          visible: labelFade.value > 0.01
+          opacity: Math.min(1, labelFade.value)
+          x: labelX.value
           y: panel.y - height - 8
-          width: nameText.implicitWidth + 16
+          width: labelW.value
           height: 24
           radius: 6
           color: root.surface1
+          clip: true
           Text {
             id: nameText
             anchors.centerIn: parent
-            text: perScreen.hoverItem ? (perScreen.hoverItem.name || "") : ""
+            text: nameLabel.lastName
             font.family: root.labelFont
             font.pixelSize: 12
             color: root.text2
+            NumberAnimation on opacity {
+              id: nameSwap
+              running: false
+              from: 0; to: 1
+              duration: G.Tokens.swapIn * G.Tokens.motion
+              easing.type: Easing.OutCubic
+            }
           }
         }
 

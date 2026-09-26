@@ -758,11 +758,12 @@ Panel {
       anchors.verticalCenter: meterTrack.verticalCenter
       height: meterTrack.height
       radius: meterTrack.radius
-      width: meterTrack.width * root.clamp(meter.value, 0, 1)
+      width: meterTrack.width * Math.max(0, meterFill.value)
       color: meter.alarming ? G.Tokens.error : meter.fill
 
-      Behavior on width {
-        NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+      G.Spring {
+        id: meterFill
+        target: root.clamp(meter.value, 0, 1)
       }
     }
   }

@@ -36,27 +36,57 @@ Item {
   readonly property real progress: Math.max(0, Math.min(1, (liveValue - minimum) / range))
   readonly property bool _hot: mouseArea.containsMouse || root.dragging
 
-  Rectangle {
+  // Motion. While dragging, the fill follows the pointer directly; a click
+  // or a value from outside springs there. Dragged past either end, the
+  // track stretches (up to 6px, with resistance) and springs back on release.
+  property real _overshoot: 0
+  readonly property real _stretchMax: 6
+  function _rubber(px) {
+    var d = Math.abs(px)
+    return (px < 0 ? -1 : 1) * root._stretchMax * (1 - Math.exp(-d / 40))
+  }
+  Spring {
+    id: shown
+    target: root.progress
+    instant: root.dragging
+  }
+  Spring {
+    id: stretch
+    target: root._rubber(root._overshoot)
+    instant: root.dragging
+  }
+  readonly property real _shownProgress: Math.max(0, Math.min(1, shown.value))
+  readonly property real _stretchLeft: Math.max(0, -stretch.value)
+  readonly property real _stretchRight: Math.max(0, stretch.value)
+
+  // The resting track. Its geometry does not stretch, so values and ticks
+  // keep their places; the visible bar below does.
+  Item {
     id: track
     anchors.verticalCenter: parent.verticalCenter
     anchors.left: parent.left
     anchors.right: parent.right
     height: 4
-    radius: 2
+  }
+
+  Rectangle {
+    id: trackBar
+    anchors.verticalCenter: track.verticalCenter
+    x: -root._stretchLeft
+    width: track.width + root._stretchLeft + root._stretchRight
+    // Thins a little as it stretches.
+    height: 4 - (root._stretchLeft + root._stretchRight) / root._stretchMax
+    radius: height / 2
     color: Tokens.surface3
   }
 
   Rectangle {
     anchors.verticalCenter: track.verticalCenter
-    anchors.left: track.left
-    height: track.height
-    radius: track.radius
+    x: trackBar.x
+    height: trackBar.height
+    radius: trackBar.radius
     color: Tokens.accent
-    width: track.width * root.progress
-    Behavior on width {
-      enabled: !root.dragging
-      NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
-    }
+    width: root._shownProgress >= 1 ? trackBar.width : root._shownProgress <= 0 ? 0 : track.width * root._shownProgress + root._stretchLeft
   }
 
   Repeater {
@@ -79,12 +109,8 @@ Item {
     color: "#ffffff"
     opacity: root._hot ? 1 : 0
     anchors.verticalCenter: track.verticalCenter
-    x: Math.max(0, Math.min(track.width - width, track.width * root.progress - width / 2))
-    Behavior on opacity { NumberAnimation { duration: 80 } }
-    Behavior on x {
-      enabled: !root.dragging
-      NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
-    }
+    x: Math.max(-root._stretchLeft, Math.min(track.width - width + root._stretchRight, track.width * root._shownProgress - width / 2 + root._stretchRight - root._stretchLeft))
+    Behavior on opacity { NumberAnimation { duration: 80 * Tokens.motion } }
   }
 
   MouseArea {
@@ -113,6 +139,7 @@ Item {
     }
     onPositionChanged: function(mouse) {
       if (!root.dragging) return
+      root._overshoot = mouse.x < 0 ? mouse.x : Math.max(0, mouse.x - track.width)
       var next = valueFromX(mouse.x)
       root.liveValue = next
       root.moved(next)
@@ -120,6 +147,7 @@ Item {
     onReleased: function(mouse) {
       if (mouse.button !== Qt.LeftButton) return
       root.dragging = false
+      root._overshoot = 0
       root.released(root.liveValue)
       root.liveValue = root.value
     }

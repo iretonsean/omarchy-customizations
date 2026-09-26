@@ -130,6 +130,11 @@ Item {
   property int dividerHeight: Style.space(17)
   property bool searchDivider: false
   property int layoutSerial: 0
+  // Rebuilt rows: the lift lands on its row instead of gliding there.
+  property bool liftSnap: false
+  onLayoutSerialChanged: { root.liftSnap = true; liftSnapTimer.restart() }
+  // +1 into a submenu, -1 back out: which way new content slides in.
+  property int swapDirection: 1
   property int cardWidth: Math.min(root.keysLayout ? Style.space(Math.max(root.dmenuWidth, 900)) : root.dmenuActive ? Style.space(root.dmenuWidth) : ((root.activeMenu === "trigger.capture.screenrecord" || root.activeMenu === "style.font") ? Style.space(520) : Style.space(300)), panel.width - Style.gapsOut * 2)
   property int visibleRowsHeight: root.dmenuActive ? dmenuRowListHeight(layoutSerial, displayModel.count, filterText) : rowListHeight(layoutSerial, displayModel.count, filterText, searchDivider)
   property int cardHeight: root.dmenuActive
@@ -865,6 +870,10 @@ Item {
 
   function setActiveMenu(id, pushHistory, fromPointer) {
     panel.freezeCardTop()
+    if (panel.visible && id !== root.activeMenu) {
+      root.swapDirection = pushHistory ? 1 : -1
+      swapAnim.restart()
+    }
     if (!root.item(id)) id = "root"
     if (pushHistory && id !== root.activeMenu) root.navStack = root.navStack.concat([root.activeMenu])
     root.activeMenu = id
@@ -1142,6 +1151,12 @@ Item {
     referenceItem: card
   }
 
+  Timer {
+    id: liftSnapTimer
+    interval: 80
+    onTriggered: root.liftSnap = false
+  }
+
   Connections {
     target: root.appLibrary
     function onAppsChanged() {
@@ -1249,12 +1264,12 @@ Item {
   }
   PanelWindow {
     id: panel
-    visible: root.opened && root.rowsLoaded
+    visible: root.rowsLoaded && (root.opened || presence.value > 0.01)
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     WlrLayershell.namespace: "omarchy-menu"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
 
     // The card opens centered exactly as always. The first search keystroke
@@ -1275,13 +1290,34 @@ Item {
     }
     onVisibleChanged: if (!visible) { cardTop = -1; maxRowsHeight = -1 }
 
+    // Motion. The card opens on the move spring (a fade and a scale from
+    // 0.98) and closes on the faster snap spring. Its size and position
+    // follow the rows on the move spring; while it is still fading in they
+    // are placed, not animated.
+    G.Spring {
+      id: presence
+      target: root.opened && root.rowsLoaded ? 1 : 0
+      riseResponse: G.Tokens.moveResponse
+      fallResponse: G.Tokens.snapResponse
+    }
+    readonly property bool placing: presence.value < 0.3 && root.opened
+    G.Spring { id: cardW; target: root.cardWidth; instant: panel.placing }
+    G.Spring { id: cardY; target: panel.effectiveCardTop; instant: panel.placing }
+    G.Spring {
+      id: cardH
+      target: Math.min(root.cardHeight, panel.height - Style.gapsOut - panel.effectiveCardTop)
+      instant: panel.placing
+    }
+
     Rectangle {
       anchors.fill: parent
       color: root.scrim
+      opacity: Math.min(1, presence.value)
     }
 
     MouseArea {
       anchors.fill: parent
+      enabled: root.opened
       onClicked: root.cancel()
     }
 
@@ -1291,16 +1327,22 @@ Item {
       offset.y: 20
       blur: 48
       color: Qt.rgba(0, 0, 0, 0.55)
+      opacity: card.opacity
+      scale: card.scale
+      transformOrigin: Item.Top
     }
 
     // Graphite panel: surface-1, 16px radius, no border, 1px top highlight.
     BorderSurface {
       id: card
-      width: root.cardWidth
-      height: Math.min(root.cardHeight, panel.height - Style.gapsOut - panel.effectiveCardTop)
+      width: cardW.value
+      height: cardH.value
       radius: G.Tokens.radiusPanel
       anchors.horizontalCenter: parent.horizontalCenter
-      y: panel.effectiveCardTop
+      y: cardY.value
+      opacity: Math.min(1, presence.value)
+      scale: 0.98 + 0.02 * presence.value
+      transformOrigin: Item.Top
       color: G.Tokens.surface1
       borderSpec: Border.none()
       padding: root.contentMargin
@@ -1389,6 +1431,28 @@ Item {
       }
 
       Column {
+        id: cardContent
+        // 0 → 1 as new content swaps in (a submenu opens or closes).
+        property real swap: 1
+        opacity: swap
+        transform: Translate { x: (1 - cardContent.swap) * G.Tokens.swapShift * root.swapDirection }
+        layer.enabled: swap < 1
+        layer.effect: MultiEffect {
+          blurEnabled: true
+          blurMax: 16
+          blur: (1 - cardContent.swap) * G.Tokens.swapBlur / 16
+        }
+
+        NumberAnimation {
+          id: swapAnim
+          target: cardContent
+          property: "swap"
+          from: 0
+          to: 1
+          duration: G.Tokens.swapIn * G.Tokens.motion
+          easing.type: Easing.OutCubic
+        }
+
         anchors.fill: parent
         anchors.topMargin: card.contentTopInset
         anchors.rightMargin: card.contentRightInset
@@ -1462,7 +1526,7 @@ Item {
 
         Item {
           width: parent.width
-          height: root.visibleRowsHeight
+          height: Math.max(0, root.visibleRowsHeight + cardH.value - cardH.target)
 
           // Keybindings: a second column with the same rows; each column shows
           // only its own rows (MenuRow.viewColumn).
@@ -1478,6 +1542,7 @@ Item {
             layer.effect: G.RoundedClip {}
             spacing: 0
             boundsBehavior: Flickable.StopAtBounds
+            readonly property LiftTrack lift: LiftTrack { viewColumn: 1 }
             delegate: MenuRow { viewColumn: 1 }
           }
 
@@ -1493,6 +1558,7 @@ Item {
             layer.effect: G.RoundedClip {}
             spacing: root.rowSpacing
             boundsBehavior: Flickable.StopAtBounds
+            readonly property LiftTrack lift: LiftTrack { viewColumn: 0 }
 
             // Graphite row: draws its part of its group (surface-2 background,
             // the group name on the first row), then the row itself: lift for
@@ -1516,6 +1582,73 @@ Item {
           height: 0
         }
       }
+    }
+  }
+
+  // The lift of one list: one highlight that glides from row to row instead
+  // of fading out on one row and in on the next. Its top and bottom edges
+  // ride different springs (the leading edge is quicker), so it stretches
+  // in the direction of travel. The row under the cursor sets the targets;
+  // every row draws the lift clipped to itself (MenuRow), so it sits above
+  // the group background and below the row's text.
+  // The lift itself (as G.CursorSurface draws it): lift fill, 1px top
+  // highlight and a small shadow, faded as one layer.
+  component LiftSurface: Item {
+    RectangularShadow {
+      anchors.fill: parent
+      radius: G.Tokens.radiusRow
+      offset.y: 2
+      blur: 8
+      color: Qt.rgba(0, 0, 0, 0.4)
+    }
+    Rectangle {
+      anchors.fill: parent
+      radius: G.Tokens.radiusRow
+      color: G.Tokens.lift
+      Rectangle {
+        anchors { top: parent.top; left: parent.left; right: parent.right; leftMargin: G.Tokens.radiusRow; rightMargin: G.Tokens.radiusRow }
+        height: 1
+        color: G.Tokens.highlight
+      }
+    }
+  }
+
+  component LiftTrack: Item {
+    id: track
+    visible: false
+    property int viewColumn: 0
+    property real targetTop: 0
+    property real targetBottom: 0
+    readonly property bool shown: root.cursorActive && root.layoutSerial >= 0 && displayModel.count > 0
+      && (!root.keysLayout || root.columnAt(root.selectedIndex) === track.viewColumn)
+    readonly property real liftTop: topEdge.value
+    readonly property real liftBottom: bottomEdge.value
+    readonly property real fade: fadeSpring.value
+
+    G.Spring {
+      id: fadeSpring
+      target: track.shown ? 1 : 0
+      response: G.Tokens.snapResponse
+      damping: G.Tokens.snapDamping
+    }
+    // A lift that is (nearly) hidden, or rows that were just rebuilt:
+    // land on the row, do not glide.
+    readonly property bool snap: root.liftSnap || fadeSpring.value < 0.05
+    G.Spring {
+      id: topEdge
+      target: track.targetTop
+      instant: track.snap
+      damping: G.Tokens.edgeDamping
+      riseResponse: G.Tokens.trailResponse
+      fallResponse: G.Tokens.leadResponse
+    }
+    G.Spring {
+      id: bottomEdge
+      target: track.targetBottom
+      instant: track.snap
+      damping: G.Tokens.edgeDamping
+      riseResponse: G.Tokens.leadResponse
+      fallResponse: G.Tokens.trailResponse
     }
   }
 
@@ -1560,6 +1693,22 @@ Item {
     visible: row.mine
     height: row.mine ? row.topPart + row.rowHeight + row.bottomPart : 0
 
+    readonly property LiftTrack lift: ListView.view ? ListView.view.lift : null
+    Binding {
+      when: row.hasCursor && row.mine && !!row.lift
+      target: row.lift
+      property: "targetTop"
+      value: row.y + row.topPart
+      restoreMode: Binding.RestoreNone
+    }
+    Binding {
+      when: row.hasCursor && row.mine && !!row.lift
+      target: row.lift
+      property: "targetBottom"
+      value: row.y + row.topPart + row.rowHeight
+      restoreMode: Binding.RestoreNone
+    }
+
     // Group background. Only the group's first and last rows round
     // their corners; the rows between extend past their edges.
     Item {
@@ -1575,6 +1724,21 @@ Item {
         height: parent.height + (row.first ? 0 : G.Tokens.radiusGroup) + (row.last ? 0 : G.Tokens.radiusGroup)
         radius: G.Tokens.radiusGroup
         color: G.Tokens.surface2
+      }
+    }
+
+    // This row's part of the list's lift.
+    Item {
+      anchors.fill: parent
+      clip: true
+      visible: !!row.lift && row.lift.fade > 0 && row.lift.liftBottom > row.y && row.lift.liftTop < row.y + row.height
+
+      LiftSurface {
+        x: G.Tokens.padGroup
+        width: parent.width - G.Tokens.padGroup * 2
+        y: row.lift ? row.lift.liftTop - row.y : 0
+        height: row.lift ? Math.max(0, row.lift.liftBottom - row.lift.liftTop) : 0
+        opacity: row.lift ? Math.min(1, row.lift.fade) : 0
       }
     }
 
@@ -1606,10 +1770,6 @@ Item {
       width: parent.width - G.Tokens.padGroup * 2
       height: row.rowHeight
 
-      G.CursorSurface {
-        anchors.fill: parent
-        hasCursor: row.hasCursor
-      }
 
       Text {
         id: iconText

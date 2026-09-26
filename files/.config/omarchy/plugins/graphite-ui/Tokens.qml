@@ -65,4 +65,25 @@ QtObject {
   readonly property int sizeNavRow: 14
   readonly property int sizeDataRow: 13
   readonly property int sizeValue: 12
+
+  // Motion (docs/theme-direction.md, Motion). Springs are set by response
+  // (seconds for one undamped period, as in SwiftUI) and damping (1 = no
+  // overshoot). motion = 0 turns every spring into an instant change.
+  readonly property real motion: 1
+  // Hover lift, colors, small state changes: settles in about 120ms.
+  readonly property real snapResponse: 0.16
+  readonly property real snapDamping: 1
+  // Knobs, indicators, card size and position: at most 2% overshoot.
+  readonly property real moveResponse: 0.3
+  readonly property real moveDamping: 0.8
+  // The two edges of a travelling highlight: the leading edge rides lead,
+  // the trailing edge trail, so the highlight stretches on the way.
+  readonly property real leadResponse: 0.2
+  readonly property real trailResponse: 0.34
+  readonly property real edgeDamping: 0.86
+  // Content that swaps inside a morphing container: in over 140ms from a
+  // 4px blur and an 8px offset.
+  readonly property int swapIn: 140
+  readonly property real swapBlur: 4
+  readonly property int swapShift: 8
 }

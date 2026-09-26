@@ -95,6 +95,23 @@ Contrast on `surface-1`: `text-3` 6.2:1, `label-tint` 5.1:1, `ok` 9.9:1, `error`
 | Value | SF Mono | 12px | 400 | `text-3` |
 | Keycap | SF Mono | 11px | 400 | `text-2` |
 
+### Motion
+
+Things that move use springs (`graphite-ui/Spring.qml`), not fixed durations. A spring keeps its speed when its target changes mid-move, so fast input reads as one motion. Each spring has a response (the time of one undamped swing, as in SwiftUI) and a damping (1 = no overshoot). The values are in `Tokens.qml`; `motion: 0` turns every spring into an instant change.
+
+| Token | Response | Damping | Use |
+|---|---|---|---|
+| `snap` | 0.16s | 1 | Lift fade, colors, closing a panel |
+| `move` | 0.30s | 0.8 (about 1.5% overshoot) | Opening a panel, card size and position, knobs |
+| `lead` / `trail` | 0.20s / 0.34s | 0.86 | The two edges of a moving highlight: the leading edge is quicker, so the highlight stretches as it travels |
+| `swap` | 140ms, ease-out | — | New content inside a resizing card: in from a 4px blur and an 8px shift |
+
+- **One highlight.** A list has one lift that glides from row to row. It does not fade out on one row and in on the next. `CursorSurface` does this for every row, pill, chip and dock tile: its lift lives in the row's container (`GlideLift`) and carries over to the next row there. A button's chosen fill glides the same way between the choices of a group.
+- **One card.** A card that changes content (a submenu, a filtered list) keeps its shape and springs to its new size. Only its content swaps. A bar panel that replaces another one starts from the other card's place and size (`MotionState`).
+- **Stretch at the ends.** A toggle knob and a moving highlight stretch in the direction of travel. A slider dragged past its end stretches up to 6px and springs back on release.
+- **Land exactly.** A spring ends on its target, so a scaled card ends at exactly 1 and its text is sharp.
+- **Not allowed:** bouncy easing, overshoot you can see, particle effects, glows.
+
 ## Components
 
 1. **Panel:** `surface-1`, 16px radius, panel shadow, 16px padding. Title row: title left, mono meta right (for example "super space" or "48 bindings").
@@ -147,7 +164,7 @@ These are open design questions. They come after the build in "Order for the ses
 
 1. **Visible keyboard focus.** The lift (`#303033` on `#222224`) is quiet. Check if you can find the focused row at a glance while you type in the menu. If not, add a second signal for keyboard focus only, for example a 1px `accent` inner edge. Keep the lift alone for hover.
 2. **Window focus.** The rules say blue marks what is chosen, and the focused window is a kind of choice. Compare two versions: the current blue border (`rgba(0a84ffb3)`), and no colored border with Hyprland's `dim_inactive` at a low value. Pick the version where you find the focused window faster.
-3. **Motion.** Give every panel the same entry: a fade and a scale from 0.98, 120–160ms, ease-out. The toggle knob slides in 120ms. The lift fades in 80ms. Set the Hyprland layer animations to match and check that the menu does not feel slow.
+3. **Motion.** The menu, the bar panels, the dock and the shared parts follow "Motion" above. Hyprland has no springs; the Graphite theme's `hyprland.lua` sets two bezier curves that stand in for `move` and `snap`. Check whether workspace switches should animate too (Omarchy turns them off).
 4. **The bar.** Waybar does not follow the D rules yet. Try workspace numbers in SF Mono, the current workspace shown with a lift and not a color, and status values as mono text in `text-3` that turns `warn` or `error` only when something needs attention.
 5. **Background.** Dark panels on the graphite glow have low contrast between panel and wall. Try a background with more tone change (a lighter graphite texture or a soft grain), and check that panels still look separate without borders.
 6. **Density.** The menu uses 36px rows and data uses 30px rows. Use the menu for a day at each size and check whether one row height for everything is enough.

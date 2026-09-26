@@ -929,14 +929,14 @@ Panel {
     id: connectionPhraseSwap
     PropertyAnimation {
       target: heroMeta; property: "opacity"
-      to: 0.0; duration: 180; easing.type: Easing.OutQuad
+      to: 0.0; duration: 80 * G.Tokens.motion; easing.type: Easing.OutQuad
     }
     ScriptAction {
       script: root.connectionPhraseIndex = (root.connectionPhraseIndex + 1) % root.connectionPhrases.length
     }
     PropertyAnimation {
       target: heroMeta; property: "opacity"
-      to: 1.0; duration: 260; easing.type: Easing.InQuad
+      to: 1.0; duration: G.Tokens.swapIn * G.Tokens.motion; easing.type: Easing.OutCubic
     }
   }
 
@@ -1345,14 +1345,15 @@ Panel {
           width: parent.width
           clip: true
           visible: height > 0
-          height: root.bandPillsVisible ? bandRow.implicitHeight : 0
+          height: Math.max(0, bandHeight.value)
           opacity: root.bandPillsVisible ? 1 : 0
 
-          Behavior on height {
-            NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+          G.Spring {
+            id: bandHeight
+            target: root.bandPillsVisible ? bandRow.implicitHeight : 0
           }
           Behavior on opacity {
-            NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+            NumberAnimation { duration: 140 * G.Tokens.motion; easing.type: Easing.OutCubic }
           }
 
           Row {

@@ -1,6 +1,8 @@
 singleton Tokens 1.0 Tokens.qml
+singleton MotionState 1.0 MotionState.qml
 Button 1.0 Button.qml
 CursorSurface 1.0 CursorSurface.qml
+GlideLift 1.0 GlideLift.qml
 Group 1.0 Group.qml
 KeyboardPanel 1.0 KeyboardPanel.qml
 PanelActionButton 1.0 PanelActionButton.qml
@@ -18,4 +20,5 @@ RoundedClip 1.0 RoundedClip.qml
 SpeedTestOverlay 1.0 SpeedTestOverlay.qml
 Keycap 1.0 Keycap.qml
 SearchField 1.0 SearchField.qml
+Spring 1.0 Spring.qml
 Chip 1.0 Chip.qml

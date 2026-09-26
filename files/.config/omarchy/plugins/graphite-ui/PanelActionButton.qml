@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import qs.Ui
+import "." as Graphite
 
 // Small icon button in a panel header (QR code, speed test, refresh). Line
 // icon in text-3; under the pointer or keyboard cursor it lifts and the icon
@@ -34,33 +35,15 @@ Item {
 
   readonly property bool _hot: (mouse.containsMouse || root.hasCursor || (focusable && activeFocus)) && root.enabled
 
-  // Lift: one layer (fill, highlight, shadow) that fades in 80ms.
-  property real liftOpacity: root._hot ? 1 : 0
-  Behavior on liftOpacity { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
-
-  RectangularShadow {
-    anchors.fill: surface
-    opacity: root.liftOpacity
-    visible: opacity > 0
-    radius: root.radius
-    offset.y: 2
-    blur: 8
-    color: Qt.rgba(0, 0, 0, 0.4)
-  }
-
-  Rectangle {
-    id: surface
+  // Lift: a CursorSurface, so it glides to a neighbouring button.
+  Graphite.CursorSurface {
+    id: liftSurface
     anchors.fill: parent
     radius: root.radius
-    color: Tokens.lift
-    opacity: root.liftOpacity
-    visible: opacity > 0
-    Rectangle {
-      anchors { top: parent.top; left: parent.left; right: parent.right; leftMargin: root.radius; rightMargin: root.radius }
-      height: 1
-      color: Tokens.highlight
-    }
+    hasCursor: root._hot
   }
+  readonly property real liftOpacity: liftSurface.liftOpacity
+
 
   Text {
     textFormat: Text.PlainText

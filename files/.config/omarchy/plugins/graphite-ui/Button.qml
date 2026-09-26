@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
 import qs.Ui
+import "." as Graphite
 
 // Graphite button. Keeps the properties and signals of Omarchy's Button.
 //   bordered (a pill or choice)  surface-2 fill, no outline
@@ -62,41 +63,35 @@ Item {
   readonly property bool chosen: selected || active
   readonly property color textColor: chosen ? Tokens.onAccent : (hot ? Tokens.text1 : root.foreground)
 
-  // Base: chosen (accent-soft), bordered choice (surface-2) or none.
-  Rectangle {
+  // Three layers, each a CursorSurface so it can glide to a neighbouring
+  // button (docs/theme-direction.md, Motion): the resting fill of a
+  // bordered choice (surface-2) or a caller's background, the chosen fill
+  // (accent-soft), and the lift for hover and the keyboard cursor.
+  Graphite.CursorSurface {
+    anchors.fill: parent
+    channel: "base"
+    depth: -2
+    shadowed: false
+    radius: root.radius
+    fill: root.bordered ? Tokens.surface2 : root.background
+    hasCursor: root.bordered || root.background.a > 0
+  }
+  Graphite.CursorSurface {
+    anchors.fill: parent
+    channel: "chosen"
+    depth: -1
+    shadowed: false
+    radius: root.radius
+    fill: Tokens.accentSoft
+    hasCursor: root.chosen
+  }
+  Graphite.CursorSurface {
+    id: liftSurface
     anchors.fill: parent
     radius: root.radius
-    visible: root.chosen || root.bordered || root.background.a > 0
-    color: root.chosen ? Tokens.accentSoft : (root.bordered ? Tokens.surface2 : root.background)
+    hasCursor: root.hot && !root.chosen
   }
-
-  // Lift: one layer (fill, highlight, shadow) that fades in 80ms.
-  property real liftOpacity: root.hot && !root.chosen ? 1 : 0
-  Behavior on liftOpacity { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
-
-  RectangularShadow {
-    anchors.fill: surface
-    opacity: root.liftOpacity
-    visible: opacity > 0
-    radius: root.radius
-    offset.y: 2
-    blur: 8
-    color: Qt.rgba(0, 0, 0, 0.4)
-  }
-
-  Rectangle {
-    id: surface
-    anchors.fill: parent
-    radius: root.radius
-    color: Tokens.lift
-    opacity: root.liftOpacity
-    visible: opacity > 0
-    Rectangle {
-      anchors { top: parent.top; left: parent.left; right: parent.right; leftMargin: root.radius; rightMargin: root.radius }
-      height: 1
-      color: Tokens.highlight
-    }
-  }
+  readonly property real liftOpacity: liftSurface.liftOpacity
 
   ToolTip {
     visible: root.tooltipText !== "" && mouseArea.containsMouse
